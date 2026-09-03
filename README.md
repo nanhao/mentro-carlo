@@ -33,6 +33,23 @@
 
 agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
+### 地图文件格式
+
+- 地图以 CSV 文件描述，示例见 `src/main/java/com/metrocarlo/world/map/demo.csv`
+- 每行对应一排格子，**第一行为最上方一排**（对应坐标系：最后一行是 \(y=0\)，第一行是 \(y=height-1\)）
+- 每个单元格为整数，取值与 `Constants` 中的格子类型编码一致：
+
+| 数值 | 含义 |
+|---|---|
+| 0 | 空格子 |
+| 1 | 墙体 |
+| 2 | 炸弹 |
+| 3 | 苹果 |
+| 4 | 终点 |
+
+- 所有行列数必须一致（矩形网格）；宽度 = 列数，高度 = 行数
+- 单元格两侧空格、空行与 UTF-8 BOM 会被容忍；文件为空、行宽不一致或出现非法整数时将报错
+
 ## 环境要求
 
 | 工具  | 版本       | 说明                          |
@@ -42,11 +59,16 @@ agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
 ## 当前状态与快速开始
 
-项目处于**骨架阶段**：构建与测试链路已就绪，世界模型与模拟器尚未实现（待补充世界布局与规则代码后，在此给出可运行示例）。
+项目处于**早期实现阶段**：构建、测试与运行链路已就绪；世界模型（`world` 包）已实现从 CSV 地图文件加载网格世界（`World` + `CsvParser`），移动与奖励规则、agent 决策与蒙特卡洛模拟器待实现。
 
 ```bash
-# 验证构建链路（当前无测试与主类，编译通过即可）
+# 编译并运行主类（Main.java 当前为最小占位输出）
+mvn compile exec:java
+
+# 仅编译主代码
 mvn compile
+
+# 运行单元测试
 mvn test
 ```
 
@@ -54,14 +76,15 @@ mvn test
 
 ```
 metro-carlo/
-├── pom.xml                          # Maven 构建配置（JDK 21 + JUnit 5）
+├── pom.xml                          # Maven 构建配置（JDK 21 + JUnit 5 + exec 运行插件）
 ├── README.md                        # 项目说明（本文件，含游戏设定）
 └── src/
     ├── main/java/com/metrocarlo/
-    │   ├── world/                   # 网格世界模型：坐标与格子类型、移动与奖励规则
+    │   ├── Main.java                # 运行入口（mvn compile exec:java 执行，当前为占位输出）
+    │   ├── world/                   # 网格世界模型：World（网格状态与坐标映射）、CsvParser（地图 CSV 解析）
     │   ├── agent/                   # agent 移动决策：从 (0,0) 出发，目标累计奖励最高
     │   └── montecarlo/              # 蒙特卡洛模拟：一局即一次样本，多局统计平均
-    └── test/java/com/metrocarlo/    # 单元测试（随实现补充）
+    └── test/java/com/metrocarlo/    # 单元测试（WorldTest、CsvParserTest，随实现补充）
 ```
 
 ## 蒙特卡洛思路

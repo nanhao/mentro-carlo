@@ -26,6 +26,13 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.32</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -44,6 +51,15 @@
                 <version>3.5.2</version>
             </plugin>
 
+            <!-- 编译后运行主类：mvn compile exec:java -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>com.metrocarlo.Main</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
