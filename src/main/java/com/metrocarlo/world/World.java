@@ -58,4 +58,17 @@ public class World {
         return map[x][y];
     }
 
+    /**
+     * 设置 (x, y) 处的格子类型，取值应为 Constants 中 CELL_TYPE_* 常量之一。
+     *
+     * @param x     横向坐标（0 ~ width-1，自左向右）
+     * @param y     纵向坐标（0 ~ height-1，自下向上）
+     * @param value 格子类型编码
+     * @return 设置后的值（即 value）
+     */
+    public int setCell(int x, int y, int value) {
+        map[x][y] = value;
+        return value;
+    }
+
 }

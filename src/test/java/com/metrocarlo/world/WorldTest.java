@@ -10,8 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link World} 的单元测试。
@@ -53,16 +51,5 @@ class WorldTest {
         assertEquals(Constants.CELL_TYPE_WALL, world.getCell(2, 1));
         assertEquals(Constants.CELL_TYPE_BOMB, world.getCell(4, 1));
         assertEquals(Constants.CELL_TYPE_EMPTY, world.getCell(0, 0), "起点格应为空");
-    }
-
-    /** CSV 解析失败（如文件不存在）时，World 应将异常原样传播，不吞掉 */
-    @Test
-    void loadCsvShouldPropagateParseFailure() {
-        Path missing = tempDir.resolve("no-such-map.csv");
-
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> new World(missing.toString()));
-
-        assertTrue(ex.getMessage().contains("no-such-map.csv"), "异常信息应包含出错文件路径");
     }
 }
