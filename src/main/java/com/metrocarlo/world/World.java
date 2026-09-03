@@ -49,13 +49,15 @@ public class World {
     }
 
     /**
-     * 返回 (x, y) 处的格子类型，取值为 Constants 中 CELL_TYPE_* 常量之一。
+     * 返回 (x, y) 处的格子快照，携带坐标与类型。
+     * <p>
+     * 对快照的修改不会影响世界，需通过 {@link #setCell(Cell)} 写回后生效。
      *
      * @param x 横向坐标（0 ~ width-1，自左向右）
      * @param y 纵向坐标（0 ~ height-1，自下向上）
      */
-    public int getCell(int x, int y) {
-        return map[x][y];
+    public Cell getCell(int x, int y) {
+        return new Cell(x, y, map[x][y]);
     }
 
     /**
@@ -64,11 +66,18 @@ public class World {
      * @param x     横向坐标（0 ~ width-1，自左向右）
      * @param y     纵向坐标（0 ~ height-1，自下向上）
      * @param value 格子类型编码
-     * @return 设置后的值（即 value）
      */
-    public int setCell(int x, int y, int value) {
+    public void setCell(int x, int y, int value) {
         map[x][y] = value;
-        return value;
+    }
+
+    /**
+     * 把格子的最新状态写回世界：按 cell 携带的坐标更新对应格子的类型。
+     *
+     * @param cell 格子快照（通常由 {@link #getCell(int, int)} 取出并修改后传入）
+     */
+    public void setCell(Cell cell) {
+        map[cell.getX()][cell.getY()] = cell.getType();
     }
 
 }

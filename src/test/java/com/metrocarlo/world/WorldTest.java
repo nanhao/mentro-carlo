@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * <p>
  * 坐标系约定与 README 一致：(0,0) 为左下角，y 自下向上；
  * 因此 CSV 的第一行对应地图最上方一行（y = height - 1），最后一行对应 y = 0。
- * CSV 读取与解析的细节行为（容错、校验）由 {@link CsvParserTest} 覆盖。
+ * CSV 读取与解析的细节行为（容错、校验）由 {@link CsvParserTest} 覆盖；
+ * 格子状态通过 {@link Cell} 值对象读写。
  */
 class WorldTest {
 
@@ -45,11 +46,29 @@ class WorldTest {
 
         assertEquals(5, world.getWidth(), "宽度应等于 CSV 列数");
         assertEquals(4, world.getHeight(), "高度应等于 CSV 行数");
-        assertEquals(Constants.CELL_TYPE_TERMINAL, world.getCell(4, 3), "首行末列应为终点");
-        assertEquals(Constants.CELL_TYPE_APPLE, world.getCell(1, 3), "首行第 2 列应为苹果");
-        assertEquals(Constants.CELL_TYPE_APPLE, world.getCell(3, 2));
-        assertEquals(Constants.CELL_TYPE_WALL, world.getCell(2, 1));
-        assertEquals(Constants.CELL_TYPE_BOMB, world.getCell(4, 1));
-        assertEquals(Constants.CELL_TYPE_EMPTY, world.getCell(0, 0), "起点格应为空");
+        assertEquals(Constants.CELL_TYPE_TERMINAL, world.getCell(4, 3).getType(), "首行末列应为终点");
+        assertEquals(Constants.CELL_TYPE_APPLE, world.getCell(1, 3).getType(), "首行第 2 列应为苹果");
+        assertEquals(Constants.CELL_TYPE_APPLE, world.getCell(3, 2).getType());
+        assertEquals(Constants.CELL_TYPE_WALL, world.getCell(2, 1).getType());
+        assertEquals(Constants.CELL_TYPE_BOMB, world.getCell(4, 1).getType());
+        assertEquals(Constants.CELL_TYPE_EMPTY, world.getCell(0, 0).getType(), "起点格应为空");
+    }
+
+    /** 基于 Cell 操作：取出快照、修改类型、写回后应生效 */
+    @Test
+    void cellSnapshotShouldApplyWhenSetBack() throws IOException {
+        Path csv = writeCsv("0,0\n0,0\n");
+
+        World world = new World(csv.toString());
+
+        Cell cell = world.getCell(1, 0); // y=0 为最下排（CSV 末行）
+        assertEquals(1, cell.getX(), "Cell 应携带取出时的坐标");
+        assertEquals(0, cell.getY());
+        assertEquals(Constants.CELL_TYPE_EMPTY, cell.getType());
+
+        cell.setType(Constants.CELL_TYPE_APPLE);
+        world.setCell(cell);
+
+        assertEquals(Constants.CELL_TYPE_APPLE, world.getCell(1, 0).getType(), "写回后格子类型应更新");
     }
 }
