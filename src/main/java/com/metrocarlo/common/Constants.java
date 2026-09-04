@@ -8,5 +8,10 @@ public class Constants {
 
     public static final int REWARD_APPLE = 2;
     public static final int REWARD_WALL = -1;
-    public static final int REWARD_BOMB = -2;
+    public static final int REWARD_BOMB = -5;
+
+    public static final int DIRECTION_UP = 0;
+    public static final int DIRECTION_RIGHT = 1;
+    public static final int DIRECTION_DOWN = 2;
+    public static final int DIRECTION_LEFT = 3;
 }

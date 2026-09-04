@@ -1,5 +1,11 @@
 package com.metrocarlo.world;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.metrocarlo.common.Constants;
+import com.metrocarlo.world.history.ActionRecord;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,17 +15,29 @@ public class World {
     private final int width;
     @Getter @Setter
     private final int height;
-    @Getter @Setter
-    private final int startX = 0;
-    @Getter @Setter
-    private final int startY = 0;
 
     private int[][] map; // 值域定义在 com.metrocarlo.common.Constants.CELL_TYPE_* 常量组
+    private int[][] initialMap; // 初始地图副本：reset 时还原被消耗的苹果/炸弹，保证多局环境一致
+
+    private final int startX = 0;
+    private final int startY = 0;
+    private int currentX = 0;
+    private int currentY = 0;
+
+    @Getter
+    private int stepCount = 0;
+
+    @Getter
+    private int totalReward = 0;
+
+    @Getter
+    private List<ActionRecord> history = new ArrayList<>();
 
     public World(int width, int height) {
         this.width = width;
         this.height = height;
         map = new int[width][height];
+        initialMap = deepCopyMap(map);
     }
 
     /**
@@ -46,6 +64,32 @@ public class World {
                 map[x][y] = grid[rowIndex][x];
             }
         }
+        initialMap = deepCopyMap(map);
+    }
+
+    public void reset() {
+        restoreInitialMap();
+        currentX = startX;
+        currentY = startY;
+        stepCount = 0;
+        totalReward = 0;
+        history.clear();
+    }
+
+    /** 把地图还原为初始状态（恢复被消耗的苹果/炸弹） */
+    private void restoreInitialMap() {
+        for (int x = 0; x < width; x++) {
+            System.arraycopy(initialMap[x], 0, map[x], 0, height);
+        }
+    }
+
+    /** 深拷贝地图数组 */
+    private static int[][] deepCopyMap(int[][] source) {
+        int[][] copy = new int[source.length][];
+        for (int x = 0; x < source.length; x++) {
+            copy[x] = source[x].clone();
+        }
+        return copy;
     }
 
     /**
@@ -80,4 +124,125 @@ public class World {
         map[cell.getX()][cell.getY()] = cell.getType();
     }
 
+    public boolean isTerminated() {
+        return getCurrentCell().getType() == Constants.CELL_TYPE_TERMINAL;
+    }
+
+    public Cell getCurrentCell() {
+        return getCell(currentX, currentY);
+    }
+
+    public void setCurrentCell(Cell cell) {
+        if (!isValidAgentPosition(cell.getX(), cell.getY())) {
+            throw new IllegalArgumentException("Invalid agent position: " + cell.getX() + ", " + cell.getY());
+        }
+
+        currentX = cell.getX();
+        currentY = cell.getY();
+    }
+
+    private boolean isValidAgentPosition(int x, int y) {
+        if (!(x >= 0 && x < width && y >= 0 && y < height)) {
+            return false;
+        }
+
+        if (getCell(x, y).getType() == Constants.CELL_TYPE_WALL) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 返回 currentCell 指定方向上的相邻格子快照；该方向越出边界时返回 null。
+     * <p>
+     * 邻居完全基于传入的 currentCell 计算，与 agent 当前位置无关。
+     *
+     * @param currentCell 参照格子快照
+     * @param direction   方向常量（见 Constants.DIRECTION_*）
+     */
+    public Cell getNeighborCell(Cell currentCell, int direction) {
+        switch (direction) {
+            case Constants.DIRECTION_UP:
+                if (isAtTopBorder(currentCell)) return null;
+                return new Cell(currentCell.getX(), currentCell.getY() + 1,
+                        map[currentCell.getX()][currentCell.getY() + 1]);
+            case Constants.DIRECTION_DOWN:
+                if (isAtBottomBorder(currentCell)) return null;
+                return new Cell(currentCell.getX(), currentCell.getY() - 1,
+                        map[currentCell.getX()][currentCell.getY() - 1]);
+            case Constants.DIRECTION_LEFT:
+                if (isAtLeftBorder(currentCell)) return null;
+                return new Cell(currentCell.getX() - 1, currentCell.getY(),
+                        map[currentCell.getX() - 1][currentCell.getY()]);
+            case Constants.DIRECTION_RIGHT:
+                if (isAtRightBorder(currentCell)) return null;
+                return new Cell(currentCell.getX() + 1, currentCell.getY(),
+                        map[currentCell.getX() + 1][currentCell.getY()]);
+            default:
+                throw new IllegalArgumentException("Invalid direction: " + direction);
+        }
+    }
+
+    public Cell move(int direction) {
+        if (isTerminated()) {
+            throw new RuntimeException("World is terminated");
+        }
+
+        Cell currentCell = getCurrentCell();
+        Cell nextCell = getNeighborCell(currentCell, direction);
+
+        stepCount++;
+        int reward = computeReward(currentCell, nextCell);
+        totalReward += reward;
+
+        if (nextCell == null || nextCell.getType() == Constants.CELL_TYPE_WALL) {
+            nextCell = currentCell;
+        } else if (nextCell.getType() == Constants.CELL_TYPE_BOMB ||
+                   nextCell.getType() == Constants.CELL_TYPE_APPLE) {
+            // 只有真实进入道具格才消耗；原地不动（撞墙/越界）时不得误伤脚下格子
+            nextCell.setType(Constants.CELL_TYPE_EMPTY);
+            setCell(nextCell);
+        }
+
+        setCurrentCell(nextCell);
+        history.add(new ActionRecord(currentCell, direction, reward, nextCell));
+        return nextCell;
+    }
+
+    private int computeReward(Cell currentCell, Cell nextCell) {
+        if (nextCell == null) {
+            return Constants.REWARD_WALL;
+        }
+
+        if (nextCell.getType() == Constants.CELL_TYPE_WALL) {
+            return Constants.REWARD_WALL;
+        }
+
+        if (nextCell.getType() == Constants.CELL_TYPE_BOMB) {
+            return Constants.REWARD_BOMB;
+        }
+
+        if (nextCell.getType() == Constants.CELL_TYPE_APPLE) {
+            return Constants.REWARD_APPLE;
+        }
+
+        return 0;
+    }
+
+    public boolean isAtLeftBorder(Cell cell) {
+        return cell.getX() == 0;
+    }
+
+    public boolean isAtRightBorder(Cell cell) {
+        return cell.getX() == width - 1;
+    }
+
+    public boolean isAtTopBorder(Cell cell) {
+        return cell.getY() == height - 1;
+    }
+
+    public boolean isAtBottomBorder(Cell cell) {
+        return cell.getY() == 0;
+    }
 }
