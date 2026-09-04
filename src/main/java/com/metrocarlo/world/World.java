@@ -67,6 +67,18 @@ public class World {
         initialMap = deepCopyMap(map);
     }
 
+    public World(World world) {
+        this.width = world.width;
+        this.height = world.height;
+        this.map = deepCopyMap(world.map);
+        this.initialMap = deepCopyMap(world.initialMap);
+        this.currentX = world.currentX;
+        this.currentY = world.currentY;
+        this.stepCount = world.stepCount;
+        this.totalReward = world.totalReward;
+        this.history = new ArrayList<>(world.history);
+    }
+
     public void reset() {
         restoreInitialMap();
         currentX = startX;
@@ -141,6 +153,16 @@ public class World {
         currentY = cell.getY();
     }
 
+    public List<Cell> getCells() {
+        List<Cell> cells = new ArrayList<>();
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                cells.add(getCell(x, y));
+            }
+        }
+        return cells;
+    }
+
     private boolean isValidAgentPosition(int x, int y) {
         if (!(x >= 0 && x < width && y >= 0 && y < height)) {
             return false;
@@ -206,7 +228,7 @@ public class World {
         }
 
         setCurrentCell(nextCell);
-        history.add(new ActionRecord(currentCell, direction, reward, nextCell));
+        history.add(new ActionRecord(currentCell, direction, reward, totalReward, nextCell));
         return nextCell;
     }
 

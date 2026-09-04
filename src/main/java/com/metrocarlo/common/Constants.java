@@ -14,4 +14,12 @@ public class Constants {
     public static final int DIRECTION_RIGHT = 1;
     public static final int DIRECTION_DOWN = 2;
     public static final int DIRECTION_LEFT = 3;
+    public static final int DIRECTION_COUNT = 4;
+
+    public static final double DEFAULT_EPSILON = 0.1;
+    public static final double DEFAULT_ALPHA = 0.5;
+    public static final double DEFAULT_GAMMA = 0.9;
+
+    public static final int MAX_STEP_PER_EPISODE = 1000;
+    public static final int DEFAULT_MAX_EPISODE = 1000;
 }
