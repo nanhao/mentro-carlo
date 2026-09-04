@@ -2,12 +2,10 @@ package com.metrocarlo.agent;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import com.metrocarlo.common.Constants;
 import com.metrocarlo.world.Cell;
-import com.metrocarlo.world.World;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -18,12 +16,6 @@ public class EpsilonGreedyPolicy extends Policy {
 
     @Getter @Setter
     protected double epsilon = Constants.DEFAULT_EPSILON;
-
-    public EpsilonGreedyPolicy(World world, Map<StateActionPair, Double> qValues, Map<Cell, Double> stateValues) {
-        this.world = world;
-        this.qValues = qValues;
-        this.stateValues = stateValues;
-    }
 
     @Override
     public int determineAction() {
