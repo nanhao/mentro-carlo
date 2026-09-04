@@ -37,8 +37,6 @@ public class MonteCarlo extends QAndSBuilder {
                 tempWorld.move(direction);
             }
 
-            Map<Cell, Double> GMap = new java.util.HashMap<>();
-            Map<StateActionPair, Double> QMap = new java.util.HashMap<>();
             double lastG = 0.0;
             List<ActionRecord> history = tempWorld.getHistory();
             // 倒序遍历并覆盖写：同一状态多次访问时保留最早一次（首访问）的回报，即 first-visit 语义
@@ -48,23 +46,12 @@ public class MonteCarlo extends QAndSBuilder {
 
                 // 折扣回报：当步即时奖励 + gamma * 后继状态的回报
                 double G = actionRecord.getReward() + gamma * lastG;
-                GMap.put(cell, G);
-                QMap.put(new StateActionPair(cell, actionRecord.getAction()), G);
-            }
-
-            for (Map.Entry<Cell, Double> entry : GMap.entrySet()) {
-                Cell cell = entry.getKey();
-                double G = entry.getValue();
 
                 double originalSValue = stateValues.get(cell);
                 double newSValue = originalSValue + alpha * (G - originalSValue);
                 stateValues.put(cell, newSValue);
-            }
 
-            for (Map.Entry<StateActionPair, Double> entry : QMap.entrySet()) {
-                StateActionPair stateActionPair = entry.getKey();
-                double G = entry.getValue();
-
+                StateActionPair stateActionPair = new StateActionPair(cell, actionRecord.getAction());
                 double originalQValue = qValues.get(stateActionPair);
                 double newQValue = originalQValue + alpha * (G - originalQValue);
                 qValues.put(stateActionPair, newQValue);
