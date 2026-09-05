@@ -19,7 +19,9 @@ public class World {
     private int[][] map; // 值域定义在 com.metrocarlo.common.Constants.CELL_TYPE_* 常量组
     private int[][] initialMap; // 初始地图副本：reset 时还原被消耗的苹果/炸弹，保证多局环境一致
 
+    @Getter
     private final int startX = 0;
+    @Getter
     private final int startY = 0;
     private int currentX = 0;
     private int currentY = 0;
@@ -161,6 +163,25 @@ public class World {
             }
         }
         return cells;
+    }
+
+    /**
+     * 返回初始地图（道具未被消耗前）按 CSV 行序排列的类型网格深拷贝，修改返回值不影响世界内部状态。
+     * <p>
+     * 与 {@link #World(String)} 的解析约定一致：第 0 行对应地图最上方一行（y = height - 1），
+     * 最后一行对应 y = 0——供 trace 的 meta.initialMap 等需要按行序渲染/序列化的场景直接使用。
+     *
+     * @return grid[rowIndex][x]，grid.length == height，每行长度 == width
+     */
+    public int[][] getInitialMapInCsvRowOrder() {
+        int[][] grid = new int[height][width];
+        for (int rowIndex = 0; rowIndex < height; rowIndex++) {
+            int y = height - 1 - rowIndex;
+            for (int x = 0; x < width; x++) {
+                grid[rowIndex][x] = initialMap[x][y];
+            }
+        }
+        return grid;
     }
 
     private boolean isValidAgentPosition(int x, int y) {

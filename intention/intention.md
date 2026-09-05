@@ -28,3 +28,6 @@
 
 # intention-3
 基于 intention-2 的完整需求，以及已经完成的原型。本次要来设计和实现 trace 数据的生成。首先需要基于原型设计出 trace 数据的格式和文件组织方式。trace 数据保存在 data/trace 目录下。请你帮忙设计 trace 数据的格式和文件组织方式，但先不进行实现。
+
+# intention-4
+本次任务为实现 intentino-3 关于 trace 数据生成的设计。要求 trace 数据结构定义放在 world/history 下。MonteCarlo 中进行引用，实现 trace 数据生成。此次任务无需编写测试
