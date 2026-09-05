@@ -22,3 +22,6 @@ Thumbs.db
 
 # 日志
 *.log
+
+# trace 运行产物（可由入口一键再生成，见 design/3 §2.4）
+data/trace/
