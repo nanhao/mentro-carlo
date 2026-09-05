@@ -39,7 +39,7 @@ public class MonteCarlo extends QAndSBuilder {
 
             double lastG = 0.0;
             List<ActionRecord> history = tempWorld.getHistory();
-            // 倒序遍历并覆盖写：同一状态多次访问时保留最早一次（首访问）的回报，即 first-visit 语义
+            
             for (int i = history.size() - 1; i >= 0; i--) {
                 ActionRecord actionRecord = history.get(i);
                 Cell cell = actionRecord.getCell();

@@ -25,3 +25,6 @@
 然后在 scripts 下面新增一个 python 脚本，用来基于 trace 数据做可视化。java本身不做 gui，由 python 来做。
 
 以上是完整需求，需要分解为几个小任务来做。本次先为界面做出原型设计。原型放在 requiements/2
+
+# intention-3
+基于 intention-2 的完整需求，以及已经完成的原型。本次要来设计和实现 trace 数据的生成。首先需要基于原型设计出 trace 数据的格式和文件组织方式。trace 数据保存在 data/trace 目录下。请你帮忙设计 trace 数据的格式和文件组织方式，但先不进行实现。
