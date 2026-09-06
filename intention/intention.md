@@ -31,3 +31,6 @@
 
 # intention-4
 本次任务为实现 intentino-3 关于 trace 数据生成的设计。要求 trace 数据结构定义放在 world/history 下。MonteCarlo 中进行引用，实现 trace 数据生成。此次任务无需编写测试
+
+# intention-5
+本次任务实现 intention-2 完整需求中的可视化部分。参照 requirements\2\README.md 中 T4 的部分。这部分不需要写测试。
