@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """蒙特卡洛 trace 可视化主窗口（tkinter GUI），按 requirements/2 README §二 布局实现。
 
-布局：顶部工具栏（标题 + 地图 + 5 控制按钮 + 徽章组）；主体左列地图卡（图例 + 色阶条），
+布局：顶部工具栏两行（第 1 行 = 标题 + 地图 + 5 控制按钮；第 2 行靠右 = 徽章组，对照原型）；
+主体左列地图卡（图例 + 色阶条），
 右列 ① 运行状态卡（α/γ/ε 参数 + 进度条）② 最近 action 详情卡 ③ 最近 episode 的 G 计算
-与 S/Q 更新过程卡（公式条 + 9 列表）；底部状态条。回放遵循 design/3 §四 契约：数据操作
+与 S/Q 更新过程卡（公式条 + 8 列表）；底部状态条。回放遵循 design/3 §四 契约：数据操作
 全部委托 TraceReplay——单步不改 S/Q（回合制），结算后重建 S/Q 表；GUI 零领域推演。
 """
 
@@ -23,6 +24,8 @@ class ViewerApp:
     # ---- 窗口外观（与 prototype.html 卡片/配色约定一致）----
     WINDOW_W: int = 1480
     WINDOW_H: int = 900
+    MIN_W: int = 1120             # 缩放下限（保证工具栏/卡片不被过度裁剪）
+    MIN_H: int = 800
     BG: str = "#e9edf3"            # 窗口底（卡片间空隙色）
     TOOLBAR_BG: str = "#eef1f6"    # 工具栏底色
     CARD_BG: str = "#ffffff"       # 卡片底色
@@ -53,10 +56,14 @@ class ViewerApp:
         self._map_id: str = ""
         root.title("蒙特卡洛评估与控制过程可视化")
         root.configure(bg=self.BG)
-        x: int = max(0, (root.winfo_screenwidth() - self.WINDOW_W) // 2)
-        y: int = max(0, (root.winfo_screenheight() - self.WINDOW_H) // 3)
-        root.geometry(f"{self.WINDOW_W}x{self.WINDOW_H}+{x}+{y}")
-        root.resizable(False, False)
+        # 初始尺寸按屏幕钳制（小屏不溢出）；允许缩放/最大化，右列与过程表随窗口自适应
+        win_w: int = min(self.WINDOW_W, root.winfo_screenwidth() - 40)
+        win_h: int = min(self.WINDOW_H, root.winfo_screenheight() - 80)
+        x: int = max(0, (root.winfo_screenwidth() - win_w) // 2)
+        y: int = max(0, (root.winfo_screenheight() - win_h) // 3)
+        root.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        root.minsize(self.MIN_W, self.MIN_H)
+        root.resizable(True, True)
         # ---- 集中定义字体与 ttk 样式 ----
         self._f_title: tuple = ("Microsoft YaHei UI", 13, "bold")
         self._f_big: tuple = ("Microsoft YaHei UI", 14, "bold")
@@ -76,33 +83,38 @@ class ViewerApp:
     # ================= 界面构建 =================
 
     def _build_toolbar(self) -> None:
-        """顶部工具栏：左标题/地图/按钮组，右徽章组（先 pack 保证空间优先）。"""
+        """顶部工具栏（对照原型两行）：第 1 行 = 标题/地图/按钮，第 2 行靠右 = 徽章组。"""
         bar: tk.Frame = tk.Frame(self._root, bg=self.TOOLBAR_BG)
         bar.pack(fill=tk.X)
         tk.Frame(self._root, height=1, bg=self.SEP_FG).pack(fill=tk.X)
-        right: tk.Frame = tk.Frame(bar, bg=self.TOOLBAR_BG)
-        right.pack(side=tk.RIGHT, padx=(0, 12), pady=8)
-        left: tk.Frame = tk.Frame(bar, bg=self.TOOLBAR_BG)
-        left.pack(side=tk.LEFT, padx=14, pady=8)
-        self._b_ep = self._mk_badge(right, "episode", "0")
-        self._b_act = self._mk_badge(right, "action", "— / —")
-        self._b_pos = self._mk_badge(right, "位置", "(0, 0)", value_fg=self.POS_FG)
-        self._b_total = self._mk_badge(right, "累计奖励", "0")
-        self._title_lbl: tk.Label = tk.Label(left, text="蒙特卡洛评估与控制过程可视化",
+        # 第 1 行：标题 + 地图选择 + 五个控制按钮
+        row1: tk.Frame = tk.Frame(bar, bg=self.TOOLBAR_BG)
+        row1.pack(fill=tk.X, padx=14, pady=(8, 2))
+        self._title_lbl: tk.Label = tk.Label(row1, text="蒙特卡洛可视化",
                                              font=self._f_title, bg=self.TOOLBAR_BG, fg=self.TITLE_FG)
         self._title_lbl.pack(side=tk.LEFT)
-        tk.Frame(left, width=1, bg=self.SEP_FG).pack(side=tk.LEFT, padx=10, fill=tk.Y)
-        self._map_cb: ttk.Combobox = ttk.Combobox(left, values=list(self._maps.keys()),
+        tk.Frame(row1, width=1, bg=self.SEP_FG).pack(side=tk.LEFT, padx=10, fill=tk.Y)
+        self._map_cb: ttk.Combobox = ttk.Combobox(row1, values=list(self._maps.keys()),
                                                   state="readonly", width=7, font=self.F_SMALL)
         self._map_cb.pack(side=tk.LEFT)
         self._map_cb.bind("<<ComboboxSelected>>", self._on_map_selected)
-        tk.Button(left, text="浏览…", command=self._on_open_file, font=self.F_SMALL,
+        tk.Button(row1, text="浏览…", command=self._on_open_file, font=self.F_SMALL,
                   relief=tk.FLAT, bg="#ffffff", activebackground="#e3f2fd", padx=6).pack(side=tk.LEFT, padx=(4, 10))
-        self._mk_button(left, "执行一次 action", self._on_step, primary=True)
-        self._mk_button(left, "执行完当前 episode", self._on_finish_episode)
-        self._mk_button(left, "执行 100 个 episode", self._on_run_100)
-        self._mk_button(left, "执行到所有 episode 结束", self._on_run_all)
-        self._mk_button(left, "reset", self._on_reset, danger=True)
+        self._mk_button(row1, "执行一次 action", self._on_step, primary=True)
+        self._mk_button(row1, "执行完当前 episode", self._on_finish_episode)
+        self._mk_button(row1, "执行 100 个 episode", self._on_run_100)
+        self._mk_button(row1, "执行到所有 episode 结束", self._on_run_all)
+        self._mk_button(row1, "reset", self._on_reset, danger=True)
+        # 第 2 行（靠右）：episode / action / 位置 / 累计奖励徽章（原型 .badges 行）
+        row2: tk.Frame = tk.Frame(bar, bg=self.TOOLBAR_BG)
+        row2.pack(fill=tk.X, padx=(0, 12), pady=(2, 8))
+        badges: tk.Frame = tk.Frame(row2, bg=self.TOOLBAR_BG)
+        badges.pack(side=tk.RIGHT)
+        tk.Frame(badges, width=1, bg=self.SEP_FG).pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        self._b_ep = self._mk_badge(badges, "episode", "0")
+        self._b_act = self._mk_badge(badges, "action", "— / —")
+        self._b_pos = self._mk_badge(badges, "位置", "(0, 0)", value_fg=self.POS_FG)
+        self._b_total = self._mk_badge(badges, "累计奖励", "0")
 
     def _mk_badge(self, parent: tk.Widget, caption: str, value: str,
                   value_fg: str = TITLE_FG) -> tk.Label:
@@ -233,7 +245,7 @@ class ViewerApp:
                  font=self.F_SMALL, bg=self.CARD_BG, fg="#b0bec5").pack(pady=10)
 
     def _build_process_card(self, info: tk.Widget) -> None:
-        """G 计算与 S/Q 更新过程卡：说明 + 公式条 + 9 列合并单表。"""
+        """G 计算与 S/Q 更新过程卡：说明 + 公式条 + 8 列合并单表。"""
         card, box, self._proc_tag = self._card(
             info, "最近一个 episode 的 G 计算与 S/Q 更新", right_tag="")
         card.pack(fill=tk.BOTH, expand=True)
@@ -248,12 +260,16 @@ class ViewerApp:
         self._tree: ttk.Treeview = self._build_tree(table_row)
 
     def _build_tree(self, parent: tk.Widget) -> ttk.Treeview:
-        """9 列过程表（处理序/步号/状态/动作/r/γ·G/G/S/Q），右侧带纵向滚动条。"""
-        columns: tuple = ("seq", "no", "state", "act", "r", "disc", "g", "s", "q")
+        """8 列过程表（处理序/状态/动作/r/γ·G/G/S/Q），右侧带纵向滚动条。
+
+        「episode 内步号」不单列：结算序（文件序）下 no ≡ N+1−处理序（每步恰好一行），
+        纯镜像冗余；步号仍见「最近一个 action 详情」卡。
+        """
+        columns: tuple = ("seq", "state", "act", "r", "disc", "g", "s", "q")
         tree: ttk.Treeview = ttk.Treeview(parent, columns=columns, show="headings", style="Viewer.Treeview")
-        headers: dict = {"seq": "处理序", "no": "episode 内步号", "state": "状态 (x,y)", "act": "动作",
+        headers: dict = {"seq": "处理序", "state": "状态 (x,y)", "act": "动作",
                          "r": "r", "disc": "γ·G(后继)", "g": "G", "s": "S：更新前 → 更新后", "q": "Q：更新前 → 更新后"}
-        widths: dict = {"seq": 48, "no": 64, "state": 88, "act": 42, "r": 38, "disc": 82, "g": 68, "s": 156, "q": 156}
+        widths: dict = {"seq": 48, "state": 88, "act": 42, "r": 38, "disc": 82, "g": 68, "s": 156, "q": 156}
         for col in columns:
             tree.heading(col, text=headers[col])
             tree.column(col, width=widths[col], anchor="e", stretch=False)
@@ -293,7 +309,9 @@ class ViewerApp:
         self._map_canvas.pack()
         # 标题/下拉/参数条同步；参数一律取自 trace meta，避免两处维护
         self._map_id = self._find_map_id(path)
-        self._title_lbl.config(text=f"蒙特卡洛评估与控制过程可视化 · {self._map_id} · {path.parent.name}")
+        # 工具栏标题保持精简（与原型一致），完整 map/run 信息移到窗口标题栏
+        self._title_lbl.config(text=f"蒙特卡洛可视化 · {self._map_id}")
+        self._root.title(f"蒙特卡洛评估与控制过程可视化 · {self._map_id} · {path.parent.name}")
         self._map_cb.set(self._map_id if self._map_id in self._maps else "")
         meta: dict = {"α": replay.alpha, "γ": replay.gamma, "ε": replay.epsilon}
         for sym, (val_lbl, label) in self._param_capsules.items():
@@ -458,7 +476,7 @@ class ViewerApp:
         tk.Label(box, text=f"第 {v.no} / {result.total_steps} 步 · episode {result.ep_no}",
                  font=self._f_big, bg=self.CARD_BG, fg=self.TITLE_FG).pack(anchor="w")
         arrow: str = self.ACTION_ARROW[v.action]
-        tk.Label(box, text=f"从 ({v.x}, {v.y}) 向 {arrow} → 到达 ({v.next_x}, {v.next_y})",
+        tk.Label(box, text=f"从 ({v.x}, {v.y}) 向 {arrow} 到达 ({v.next_x}, {v.next_y})",
                  font=self.F_UI, bg=self.CARD_BG, fg=self.TEXT_FG).pack(anchor="w", pady=2)
         color: str = self.REWARD_POS if v.reward > 0 else (self.REWARD_NEG if v.reward < 0 else self.TEXT_FG)
         tk.Label(box, text=f"即时奖励 {sign_r}{v.reward} · 累计奖励 {sign_t}{v.total_reward}",
@@ -479,7 +497,7 @@ class ViewerApp:
         for idx, v in enumerate(reversed(ep.rows), start=1):
             arrow: str = self.ACTION_ARROW[v.action]
             self._tree.insert("", "end", values=(
-                idx, v.no, f"({v.x}, {v.y})", arrow, v.reward,
+                idx, f"({v.x}, {v.y})", arrow, v.reward,
                 f"{v.discounted_next_g:.2f}", f"{v.g:.2f}",
                 f"{v.s_old:.2f} → {v.s_new:.2f}", f"{v.q_old:.2f} → {v.q_new:.2f}"))
 
