@@ -44,6 +44,7 @@ public class MonteCarlo extends QAndSBuilder {
         qValues.clear();
         stateValues.clear();
         initQAndSValues();
+        initQAndSAlphas();
         episodeCount = 0;
         trace = collectTrace ? createEmptyTrace() : null;
 
@@ -85,13 +86,19 @@ public class MonteCarlo extends QAndSBuilder {
                 double G = actionRecord.getReward() + gamma * lastG;
 
                 double originalSValue = stateValues.get(cell);
-                double newSValue = originalSValue + alpha * (G - originalSValue);
+                double newSValue = originalSValue + sAlphas.get(cell) * (G - originalSValue);
                 stateValues.put(cell, newSValue);
+                if (Constants.DECAY_ALPHA) {
+                    sAlphas.put(cell, sAlphas.get(cell) * Constants.DECAY_ALPHA_RATE);
+                }
 
                 StateActionPair stateActionPair = new StateActionPair(cell, actionRecord.getAction());
                 double originalQValue = qValues.get(stateActionPair);
                 double newQValue = originalQValue + alpha * (G - originalQValue);
                 qValues.put(stateActionPair, newQValue);
+                if (Constants.DECAY_ALPHA) {
+                    qAlphas.put(stateActionPair, qAlphas.get(stateActionPair) * Constants.DECAY_ALPHA_RATE);
+                }
 
                 // trace 采集：与结算循环逐行对应，直接引用上述局部量，不改动算法行为
                 if (collectTrace) {
@@ -179,6 +186,16 @@ public class MonteCarlo extends QAndSBuilder {
             qValues.put(new StateActionPair(cell, Constants.DIRECTION_RIGHT), 0.0);
             qValues.put(new StateActionPair(cell, Constants.DIRECTION_DOWN), 0.0);
             qValues.put(new StateActionPair(cell, Constants.DIRECTION_LEFT), 0.0);
+        }
+    }
+
+    private void initQAndSAlphas() {
+        for (Cell cell : world.getCells()) {
+            sAlphas.put(cell, alpha);
+            qAlphas.put(new StateActionPair(cell, Constants.DIRECTION_UP), alpha);
+            qAlphas.put(new StateActionPair(cell, Constants.DIRECTION_RIGHT), alpha);
+            qAlphas.put(new StateActionPair(cell, Constants.DIRECTION_DOWN), alpha);
+            qAlphas.put(new StateActionPair(cell, Constants.DIRECTION_LEFT), alpha);
         }
     }
 }

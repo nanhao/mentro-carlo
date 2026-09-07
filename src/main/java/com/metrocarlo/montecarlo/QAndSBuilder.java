@@ -27,6 +27,12 @@ public abstract class QAndSBuilder {
     @Getter
     protected Map<Cell, Double> stateValues = new java.util.HashMap<>();
 
+    @Getter
+    protected Map<StateActionPair, Double> qAlphas = new java.util.HashMap<>();
+
+    @Getter
+    protected Map<Cell, Double> sAlphas = new java.util.HashMap<>();
+
     @Getter @Setter
     protected int maxEpisode = Constants.DEFAULT_MAX_EPISODE;
 

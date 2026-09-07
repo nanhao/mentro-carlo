@@ -25,6 +25,9 @@ public class Constants {
     public static final double DEFAULT_ALPHA = 0.5;
     public static final double DEFAULT_GAMMA = 0.9;
 
+    public static final boolean DECAY_ALPHA = false;
+    public static final double DECAY_ALPHA_RATE = 0.95;
+
     public static final int MAX_STEP_PER_EPISODE = 1000;
     public static final int DEFAULT_MAX_EPISODE = 1000;
 
