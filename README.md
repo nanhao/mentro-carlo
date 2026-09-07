@@ -35,7 +35,7 @@ agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
 ### 地图文件格式
 
-- 地图以 CSV 文件描述，示例见 `src/main/java/com/metrocarlo/world/map/demo.csv`
+- 地图以 CSV 文件描述（项目内置 10 张：`map/1/map.csv` ~ `map/10/map.csv`，由 `scripts/generate_maps.py` 生成）
 - 每行对应一排格子，**第一行为最上方一排**（对应坐标系：最后一行是 \(y=0\)，第一行是 \(y=height-1\)）
 - 每个单元格为整数，取值与 `Constants` 中的格子类型编码一致：
 
@@ -59,10 +59,10 @@ agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
 ## 当前状态与快速开始
 
-项目处于**早期实现阶段**：构建、测试与运行链路已就绪；世界模型（`world` 包）已实现从 CSV 地图文件加载网格世界（`World` + `CsvParser`），移动与奖励规则、agent 决策与蒙特卡洛模拟器待实现。
+核心链路已实现：网格世界（`world` 包：`World` + `CsvParser`）→ 决策策略（`agent` 包：`RandomPolicy`、`EpsilonGreedyPolicy`）→ 蒙特卡洛评估与控制（`montecarlo` 包）→ trace 导出与 Python GUI 回放 → 地图 1-10 的策略对比实验与可视化。
 
 ```bash
-# 编译并运行主类（Main.java 当前为最小占位输出）
+# 编译并运行主类：跑一轮完整蒙特卡洛，并把 trace 导出到 data/trace（供 montecarlo_viewer.py 回放）
 mvn compile exec:java
 
 # 仅编译主代码
@@ -72,25 +72,46 @@ mvn compile
 mvn test
 ```
 
+其余入口（地图生成/渲染、trace 回放查看器、策略对比实验）见下文与 `scripts/manual.md`。
+
 ## 目录结构
 
 ```
 metro-carlo/
 ├── pom.xml                          # Maven 构建配置（JDK 21 + JUnit 5 + exec 运行插件）
 ├── README.md                        # 项目说明（本文件，含游戏设定）
+├── map/                             # 内置 10 张地图（generate_maps.py 生成 CSV，render_maps.py 渲染 PNG）
+├── scripts/                         # Python 入口脚本：地图生成/渲染、trace 回放查看器、策略对比可视化（详见 scripts/manual.md）
+├── data/                            # 运行产物（已 gitignore，可一键再生成）：trace/ 回合轨迹，compare/ 策略对比结果
 └── src/
     ├── main/java/com/metrocarlo/
-    │   ├── Main.java                # 运行入口（mvn compile exec:java 执行，当前为占位输出）
-    │   ├── world/                   # 网格世界模型：World（网格状态与坐标映射）、CsvParser（地图 CSV 解析）
-    │   ├── agent/                   # agent 移动决策：从 (0,0) 出发，目标累计奖励最高
-    │   └── montecarlo/              # 蒙特卡洛模拟：一局即一次样本，多局统计平均
-    └── test/java/com/metrocarlo/    # 单元测试（WorldTest、CsvParserTest，随实现补充）
+    │   ├── Main.java                # 入口一：跑一轮完整蒙特卡洛并导出 trace（mvn compile exec:java）
+    │   ├── world/                   # 网格世界模型：World、CsvParser 与 history（trace 数据结构与导出）
+    │   ├── agent/                   # 决策策略：Policy、RandomPolicy、EpsilonGreedyPolicy
+    │   ├── montecarlo/              # 蒙特卡洛评估与控制：MonteCarlo、QAndSBuilder
+    │   ├── experiment/              # 策略对比实验：PolicyComparison 入口与 results.json 写盘
+    │   └── common/                  # 常量与 JSON 拼接工具（Constants、JsonAppender）
+    └── test/java/com/metrocarlo/    # 单元测试（WorldTest、CsvParserTest）
 ```
 
 ## 蒙特卡洛思路
 
 - **一局游戏**（从 (0,0) 出发直至进入终点）视为一次随机样本
 - 对同一移动策略重复大量对局，用**平均累计奖励**估计该策略的期望表现，作为评估与改进策略的依据
+
+## 策略对比实验（intention-7）
+
+在 10 张内置地图上比较 **RandomPolicy** 与 **EpsilonGreedyPolicy（ε = 0.1 ~ 0.9）** 的学习效果：每种配置独立重复 50 次「从零训练 1000 个 episode → 用学到的 Q 表按全程贪婪走一遍」，统计贪婪回合总奖励的均值（rri' / rei'-ε）与标准差。
+
+```bash
+# 第一步：Java 端跑实验，结果写入 data/compare/run-<时间戳>/results.json（可加 --episodes/--repetitions 缩小规模）
+mvn compile exec:java "-Dexec.mainClass=com.metrocarlo.experiment.PolicyComparison"
+
+# 第二步：Python 端出图：compare_per_map.png（每图一子图对比）与 compare_summary.png（全地图 ε 趋势）
+python scripts/compare_policies.py
+```
+
+实验结论：10 张地图上 **ε=0.1 均取得最优**平均贪婪奖励；ε 越大，Q 表被随机动作污染越重，效果单调下降；RandomPolicy 接近最差。数据格式与常见问题见 `scripts/manual.md` 末尾章节。
 
 ## 开发约定
 
