@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 from typing import Optional, Tuple, Union
 
-from trace_replay import TraceReplay
+from domain.trace_replay import TraceReplay
 
 
 class MapCanvas(tk.Canvas):

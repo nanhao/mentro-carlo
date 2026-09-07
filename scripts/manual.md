@@ -2,6 +2,8 @@
 
 `scripts/` 目录下的 Python 脚本承担两类工作：**地图资产的生成与渲染**（本手册前半部分）与 **trace 回放可视化查看器**（见文末「montecarlo_viewer.py」章节）。
 
+目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（`trace_replay.py` 回放引擎、`map_canvas.py` 地图画布、`viewer_app.py` 主窗口），不直接运行。
+
 ```
 map/1/map.csv  ~ map/10/map.csv   # 地图源文件（Java World 直接加载）
 map/1/map.png  ~ map/10/map.png   # 统一样式的可视化图片
@@ -114,4 +116,4 @@ python scripts/montecarlo_viewer.py --trace data/trace/map-2/run-20260901-120000
 
 - **窗口空白无地图**：`data/trace` 下尚无任何 trace，先运行 Java 端采集；确认目录结构为 `data/trace/map-N/run-<时间戳>/trace.json`
 - **控制台中文乱码**：PowerShell 默认代码页显示问题，仅影响终端打印，不影响 GUI 中文显示
-- **启动报错 `No module named 'viewer_app'`**：必须以仓库根目录为工作目录执行 `python scripts/montecarlo_viewer.py`（脚本间相对导入依赖 scripts 目录在搜索路径中）
+- **启动报错 `No module named 'domain'`**：业务模块位于 `scripts/domain/` 子目录，请始终用 `python scripts/montecarlo_viewer.py` 方式启动（脚本所在 scripts 目录会自动加入模块搜索路径）；不要直接运行 `scripts/domain/` 下的模块

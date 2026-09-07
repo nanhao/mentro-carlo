@@ -8,7 +8,7 @@
 
 发现规则：data/trace/map-*/run-*/trace.json 中按目录名（时间戳）取每个 map 的最新 run；
 若一个 map 都未发现，仍会打开空窗口（可通过「浏览…」手动加载）。入口脚本按
-code-rule 规范允许在模块级定义 cli 函数与 main 装配；业务逻辑全部在 viewer_app.py。
+code-rule 规范允许在模块级定义 cli 函数与 main 装配；业务逻辑全部在 domain/viewer_app.py。
 """
 
 import argparse
@@ -17,7 +17,7 @@ import tkinter as tk
 from pathlib import Path
 from typing import Dict
 
-from viewer_app import ViewerApp
+from domain.viewer_app import ViewerApp
 
 
 def _latest_runs(trace_root: Path) -> Dict[str, Path]:

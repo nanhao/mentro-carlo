@@ -34,3 +34,6 @@
 
 # intention-5
 本次任务实现 intention-2 完整需求中的可视化部分。参照 requirements\2\README.md 中 T4 的部分。这部分不需要写测试。
+
+# intention-6
+这是个重构任务，把 scripts 目录的非脚本入口文件挪到 domain 子目录下面去，这样不会混淆。本次任务不需要写测试。

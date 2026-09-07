@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """蒙特卡洛 trace 回放引擎：读取 data/trace/.../trace.json，按 design/3 README §四的
-「GUI 回放与 S/Q 重建契约」驱动 单步 / 整回合 / 快进 / 重置，供 GUI（viewer_app.py）消费。
+「GUI 回放与 S/Q 重建契约」驱动 单步 / 整回合 / 快进 / 重置，供 GUI（domain/viewer_app.py）消费。
 
 关键设计（与契约一一对应）：
 - 数据驱动、零领域推演：单步只做纯数据写回——agent 位置 ← nextX/nextY、动态地图

@@ -14,8 +14,8 @@ from tkinter import font as tkfont
 from pathlib import Path
 from typing import Dict, Optional
 
-from trace_replay import Episode, StepResult, TraceReplay, Visit
-from map_canvas import MapCanvas
+from domain.trace_replay import Episode, StepResult, TraceReplay, Visit
+from domain.map_canvas import MapCanvas
 
 
 class ViewerApp:
