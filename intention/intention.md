@@ -46,3 +46,6 @@
 4，继续增大 epsilon，直到 0.9，得到 rei'-0.3  ~  rei'-0.9
 然后对数据做可视化，比较在每个地图上 RandomPolicy 和 不同 epsilon 的 EpsilonGreedyPolicy 的效果
 本次任务不用写测试。
+
+# intention-8
+为了避免策略成环，增加一个设定：每采取一个行动就扣一分，同时增加苹果的奖励分数和炸弹的惩罚分数。

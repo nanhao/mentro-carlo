@@ -9,9 +9,11 @@ public class Constants {
     public static final int CELL_TYPE_APPLE = 3;
     public static final int CELL_TYPE_TERMINAL = 4;
 
-    public static final int REWARD_APPLE = 2;
+    public static final int REWARD_APPLE = 20;
     public static final int REWARD_WALL = -1;
-    public static final int REWARD_BOMB = -5;
+    public static final int REWARD_BOMB = -50;
+
+    public static final int STEP_PUNISH = -1;
 
     public static final int DIRECTION_UP = 0;
     public static final int DIRECTION_RIGHT = 1;

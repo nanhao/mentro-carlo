@@ -3,6 +3,7 @@ package com.metrocarlo;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import com.metrocarlo.agent.EpsilonGreedyPolicy;
 import com.metrocarlo.agent.Policy;
 import com.metrocarlo.agent.RandomPolicy;
 import com.metrocarlo.montecarlo.MonteCarlo;
@@ -24,8 +25,8 @@ public class Main {
      */
     private static void runMonteCarloOnOneMap(String mapPath) throws IOException {
         World world = new World(mapPath);
-        //Policy policy = new EpsilonGreedyPolicy();
-        Policy policy = new RandomPolicy();
+        Policy policy = new EpsilonGreedyPolicy();
+        //Policy policy = new RandomPolicy();
         MonteCarlo monteCarlo = new MonteCarlo(world, policy);
         monteCarlo.buildQValuesAndSValues();
 

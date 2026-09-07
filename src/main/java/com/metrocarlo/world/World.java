@@ -236,7 +236,7 @@ public class World {
         Cell nextCell = getNeighborCell(currentCell, direction);
 
         stepCount++;
-        int reward = computeReward(currentCell, nextCell);
+        int reward = Constants.STEP_PUNISH + computeReward(currentCell, nextCell);
         totalReward += reward;
 
         if (nextCell == null || nextCell.getType() == Constants.CELL_TYPE_WALL) {
