@@ -15,6 +15,7 @@ import com.metrocarlo.world.history.TraceMeta;
 import com.metrocarlo.world.history.VisitRecord;
 
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * 蒙特卡洛评估与控制：对同一策略重复执行完整回合（episode），
@@ -22,13 +23,18 @@ import lombok.Getter;
  * <p>
  * 结算循环同步采集 trace 数据（结构见 world.history，格式约定见 design/3/README.md §三）：
  * 每行 = 一次状态访问，记录 G 计算与该行 S/Q 更新前后值，供 GUI 回放与 S/Q 表重建。
- * 采集只读引用循环内既有局部量，不改动算法内容与循环顺序。
+ * 采集只读引用循环内既有局部量，不改动算法内容与循环顺序；
+ * 批量实验（如策略对比）可通过 {@link #setCollectTrace(boolean)} 整体关闭采集。
  */
 public class MonteCarlo extends QAndSBuilder {
 
-    /** 最近一次 buildQValuesAndSValues() 采集的 trace；运行前为 null */
+    /** 最近一次 buildQValuesAndSValues() 采集的 trace；运行前或关闭采集后为 null */
     @Getter
     private Trace trace;
+
+    /** 是否采集 trace：批量实验关闭后不构建任何 trace 对象，算法内容不变 */
+    @Getter @Setter
+    private boolean collectTrace = true;
 
     public MonteCarlo(World world, Policy policy) {
         super(world, policy);
@@ -39,7 +45,7 @@ public class MonteCarlo extends QAndSBuilder {
         stateValues.clear();
         initQAndSValues();
         episodeCount = 0;
-        trace = createEmptyTrace();
+        trace = collectTrace ? createEmptyTrace() : null;
 
         while (episodeCount < maxEpisode) {
             episodeCount++;
@@ -57,13 +63,16 @@ public class MonteCarlo extends QAndSBuilder {
             }
 
             // trace：本回合元信息（序号、累计奖励、结束原因），visits 在下方结算循环内逐行采集
-            EpisodeTrace episodeTrace = EpisodeTrace.builder()
-                    .index(episodeCount)
-                    .totalReward(tempWorld.getTotalReward())
-                    .endedBy(tempWorld.isTerminated()
-                            ? EpisodeTrace.ENDED_BY_TERMINAL
-                            : EpisodeTrace.ENDED_BY_MAX_STEPS)
-                    .build();
+            EpisodeTrace episodeTrace = null;
+            if (collectTrace) {
+                episodeTrace = EpisodeTrace.builder()
+                        .index(episodeCount)
+                        .totalReward(tempWorld.getTotalReward())
+                        .endedBy(tempWorld.isTerminated()
+                                ? EpisodeTrace.ENDED_BY_TERMINAL
+                                : EpisodeTrace.ENDED_BY_MAX_STEPS)
+                        .build();
+            }
 
             double lastG = 0.0;
             List<ActionRecord> history = tempWorld.getHistory();
@@ -85,30 +94,34 @@ public class MonteCarlo extends QAndSBuilder {
                 qValues.put(stateActionPair, newQValue);
 
                 // trace 采集：与结算循环逐行对应，直接引用上述局部量，不改动算法行为
-                episodeTrace.getVisits().add(VisitRecord.builder()
-                        .no(i + 1)
-                        .x(cell.getX())
-                        .y(cell.getY())
-                        .action(actionName(actionRecord.getAction()))
-                        .reward(actionRecord.getReward())
-                        .totalReward(actionRecord.getTotalReward())
-                        .nextX(actionRecord.getNextCell().getX())
-                        .nextY(actionRecord.getNextCell().getY())
-                        .fromType(cell.getType())
-                        .toType(actionRecord.getNextCell().getType())
-                        .discountedNextG(gamma * lastG)
-                        .G(G)
-                        .sOld(originalSValue)
-                        .sNew(newSValue)
-                        .qOld(originalQValue)
-                        .qNew(newQValue)
-                        .build());
+                if (collectTrace) {
+                    episodeTrace.getVisits().add(VisitRecord.builder()
+                            .no(i + 1)
+                            .x(cell.getX())
+                            .y(cell.getY())
+                            .action(actionName(actionRecord.getAction()))
+                            .reward(actionRecord.getReward())
+                            .totalReward(actionRecord.getTotalReward())
+                            .nextX(actionRecord.getNextCell().getX())
+                            .nextY(actionRecord.getNextCell().getY())
+                            .fromType(cell.getType())
+                            .toType(actionRecord.getNextCell().getType())
+                            .discountedNextG(gamma * lastG)
+                            .G(G)
+                            .sOld(originalSValue)
+                            .sNew(newSValue)
+                            .qOld(originalQValue)
+                            .qNew(newQValue)
+                            .build());
+                }
 
                 // 折扣回报回传：作为更早一步（下一轮循环）的后继回报
                 lastG = G;
             }
 
-            trace.getEpisodes().add(episodeTrace);
+            if (collectTrace) {
+                trace.getEpisodes().add(episodeTrace);
+            }
 
             policy.setQValues(qValues);
             policy.setStateValues(stateValues);

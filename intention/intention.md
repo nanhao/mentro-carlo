@@ -37,3 +37,12 @@
 
 # intention-6
 这是个重构任务，把 scripts 目录的非脚本入口文件挪到 domain 子目录下面去，这样不会混淆。本次任务不需要写测试。
+
+# intention-7
+编写一个新的脚本，针对地图1-10，每张地图做如下处理：
+1，使用 RandomPolicy 的蒙特卡洛方法运行 1000个 episode，得到状态价值函数和动作价值函数，然后按照全程贪婪走一遍，得到单次奖励 rri。重复这个过程 50 次，得到每个地图的平均奖励 rri'
+2，使用 EpsilonGreedyPolicy 的蒙特卡洛方法运行 1000 个 episode，epsilon 取 0.1，得到状态价值函数和动作价值函数，然后按照全程贪婪走一遍，得到单次奖励 rei-0.1。重复这个过程 50 次，得到每个地图的平均奖励 rei'-0.1
+3，将 epsilon 取 0.2，重复2，得到 rei'-0.2
+4，继续增大 epsilon，直到 0.9，得到 rei'-0.3  ~  rei'-0.9
+然后对数据做可视化，比较在每个地图上 RandomPolicy 和 不同 epsilon 的 EpsilonGreedyPolicy 的效果
+本次任务不用写测试。

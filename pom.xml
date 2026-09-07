@@ -16,6 +16,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
         <junit.version>5.11.4</junit.version>
+        <!-- 默认主类；可用 -Dexec.mainClass=... 临时切换入口（如策略对比实验） -->
+        <exec.mainClass>com.metrocarlo.Main</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -51,13 +53,13 @@
                 <version>3.5.2</version>
             </plugin>
 
-            <!-- 编译后运行主类：mvn compile exec:java -->
+            <!-- 编译后运行主类：mvn compile exec:java（默认 Main；-Dexec.mainClass 可切换入口） -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>com.metrocarlo.Main</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
         </plugins>

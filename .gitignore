@@ -26,4 +26,7 @@ Thumbs.db
 # trace 运行产物（可由入口一键再生成，见 design/3 §2.4）
 data/trace/
 
+# 策略对比实验产物（可由 PolicyComparison 一键再生成，见 scripts/manual.md）
+data/compare/
+
 __pycache__/

@@ -1,6 +1,6 @@
 # 地图脚本使用手册
 
-`scripts/` 目录下的 Python 脚本承担两类工作：**地图资产的生成与渲染**（本手册前半部分）与 **trace 回放可视化查看器**（见文末「montecarlo_viewer.py」章节）。
+`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
 
 目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（`trace_replay.py` 回放引擎、`map_canvas.py` 地图画布、`viewer_app.py` 主窗口），不直接运行。
 
@@ -117,3 +117,38 @@ python scripts/montecarlo_viewer.py --trace data/trace/map-2/run-20260901-120000
 - **窗口空白无地图**：`data/trace` 下尚无任何 trace，先运行 Java 端采集；确认目录结构为 `data/trace/map-N/run-<时间戳>/trace.json`
 - **控制台中文乱码**：PowerShell 默认代码页显示问题，仅影响终端打印，不影响 GUI 中文显示
 - **启动报错 `No module named 'domain'`**：业务模块位于 `scripts/domain/` 子目录，请始终用 `python scripts/montecarlo_viewer.py` 方式启动（脚本所在 scripts 目录会自动加入模块搜索路径）；不要直接运行 `scripts/domain/` 下的模块
+
+---
+
+# compare_policies.py · 策略对比实验可视化
+
+`compare_policies.py`（matplotlib，依赖 `pip install matplotlib`）读取 Java 端 `PolicyComparison` 导出的实验结果 `data/compare/run-<时间戳>/results.json`，对每张地图比较 RandomPolicy 与不同 ε（0.1~0.9）的 EpsilonGreedyPolicy 效果：每种配置重复 50 次「从零训练 1000 episode → 用学到的 Q 表全程贪婪走一遍」，记录贪婪回合总奖励的均值/标准差。
+
+## 第一步：运行 Java 端实验（产出数据）
+
+```powershell
+mvn compile exec:java -Dexec.mainClass=com.metrocarlo.experiment.PolicyComparison
+```
+
+可选参数 `--episodes N`、`--repetitions N` 可缩小规模冒烟（如 `"--episodes" "50" "--repetitions" "3"`）。默认全量运行（10 图 × 10 配置 × 50 次 × 1000 episode）约需数分钟，期间逐配置打印进度。结果写入新目录 `data/compare/run-<时间戳>/results.json`（运行产物，已被 .gitignore 排除），不覆盖旧运行。
+
+## 第二步：出图
+
+```powershell
+python scripts/compare_policies.py                                   # 自动取 data/compare 下最新一次运行
+python scripts/compare_policies.py --results data/compare/run-<时间戳>/results.json
+```
+
+图表输出到 results.json 所在的 run 目录：
+
+| 文件 | 内容 |
+|---|---|
+| `compare_per_map.png` | 每张地图一个子图：x 轴为策略配置（Random、ε=0.1~0.9），y 轴为贪婪回合总奖励；蓝线+误差棒 = 50 次重复的均值 ± 标准差，灰点 = 每次重复的原始奖励 |
+| `compare_summary.png` | 全部地图的趋势对比：每张地图一条细线，加粗深蓝线为全地图平均 |
+
+控制台同时打印每张地图按平均贪婪奖励排序的最优策略配置（含抵达终点次数，低于重复次数说明学到的贪婪策略会成环）。
+
+## 常见问题
+
+- **未找到 results.json**：先运行第一步的 Java 端实验；确认目录结构为 `data/compare/run-<时间戳>/results.json`
+- **图中中文显示为方块**：本机缺少微软雅黑/黑体字体时的显示问题，不影响数据本身
