@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import com.metrocarlo.common.Constants;
+
 /**
  * trace 导出写盘：目录组织与命名规则见 design/3/README.md §二，序列化见
  * {@link TraceJsonWriter}。
@@ -18,13 +20,13 @@ import java.time.format.DateTimeFormatter;
 public final class TraceFileWriter {
 
     /** trace 根目录（相对项目根；运行产物，已加入 .gitignore） */
-    private static final Path TRACE_ROOT = Path.of("data", "trace");
+    private static final Path TRACE_ROOT = Constants.TRACE_ROOT;
     /** 运行目录时间戳格式：本地时间到秒，字典序 = 时间序（GUI 取最新运行无需索引文件） */
     private static final DateTimeFormatter RUN_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     /** exportedAt 时间格式：ISO-8601 到秒 */
     private static final DateTimeFormatter EXPORTED_AT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
     /** 数据文件固定名 */
-    private static final String TRACE_FILE_NAME = "trace.json";
+    private static final String TRACE_FILE_NAME = Constants.TRACE_FILE_NAME;
 
     private TraceFileWriter() {
     }

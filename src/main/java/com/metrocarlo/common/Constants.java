@@ -1,4 +1,7 @@
 package com.metrocarlo.common;
+
+import java.nio.file.Path;
+
 public class Constants {
     public static final int CELL_TYPE_EMPTY = 0;
     public static final int CELL_TYPE_WALL = 1;
@@ -22,4 +25,7 @@ public class Constants {
 
     public static final int MAX_STEP_PER_EPISODE = 1000;
     public static final int DEFAULT_MAX_EPISODE = 1000;
+
+    public static final Path TRACE_ROOT = Path.of("data", "trace");
+    public static final String TRACE_FILE_NAME = "trace.json";
 }
