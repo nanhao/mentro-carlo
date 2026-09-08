@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SARSA 回放过程可视化 · 界面原型（map/1）</title>
+<style>
+/* ============ 全局 ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #e9edf3; color: #263238;
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  display: flex; justify-content: center; padding: 14px;
+}
+.app { width: 1340px; background: #f5f7fa; border: 1px solid #cfd8dc; border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(38, 50, 56, .18); overflow: hidden; }
+button { font-family: inherit; }
+
+/* ============ 顶部工具栏 ============ */
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 8px; padding: 10px 16px;
+  background: linear-gradient(#fdfdfe, #eef1f6); border-bottom: 1px solid #cfd8dc;
+}
+/* 徽章组整体作为一个弹性项：第一行放不下时整体换到第二行（靠右），避免被窗口边缘截断 */
+.badges { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.btn {
+  border: 1px solid #b0bec5; border-radius: 6px; padding: 7px 14px; font-size: 13px;
+  background: #fff; cursor: pointer; color: #37474f;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08); white-space: nowrap;
+}
+.btn:hover { background: #e3f2fd; border-color: #90caf9; }
+.btn:active { background: #bbdefb; }
+.btn.reset { background: #fdecea; border-color: #ef9a9a; color: #b71c1c; }
+.btn.reset:hover { background: #ffcdd2; }
+.btn.primary { background: #e3f2fd; border-color: #64b5f6; color: #0d47a1; }
+.toolbar .title { font-weight: 700; font-size: 15px; color: #0d47a1; margin-right: 6px; }
+.toolbar .sep { width: 1px; align-self: stretch; background: #cfd8dc; margin: 0 4px; }
+.params { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.params span { background: #eef2f7; border: 1px solid #d5dde8; border-radius: 14px;
+  padding: 2px 10px; font-size: 11.5px; color: #37474f; white-space: nowrap; }
+.params b { color: #0d47a1; font-family: Consolas, monospace; }
+.params i { font-style: normal; color: #90a4ae; }
+.badge {
+  background: #fff; border: 1px solid #cfd8dc; border-radius: 20px;
+  padding: 4px 12px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.badge b { color: #0d47a1; }
+.badge .pos { color: #e65100; }
+
+/* ============ 主体布局 ============ */
+.main { display: flex; gap: 14px; padding: 14px; align-items: stretch; }
+.card { background: #fff; border: 1px solid #dde3ea; border-radius: 10px; padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(38,50,56,.06); }
+.card h3 { font-size: 13px; color: #455a64; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.card h3::before { content: ""; width: 4px; height: 14px; background: #1e88e5; border-radius: 2px; }
+
+/* ---- 左：地图 ---- */
+.map-col { flex: 0 0 660px; display: flex; flex-direction: column; gap: 14px; }
+.map-card { flex: 1; }
+.map-wrap { width: max-content; margin: 0 auto; }
+.grid-row { display: flex; }
+.grid-row .y-label {
+  display: flex; align-items: center; justify-content: center; width: 24px; height: 108px;
+  color: #90a4ae; font-size: 12px;
+}
+.grid { display: grid; grid-template-columns: repeat(5, 108px); gap: 2px; }
+.axis-x { display: flex; margin-left: 24px; }
+.axis-x span { flex: 1; text-align: center; color: #90a4ae; font-size: 12px; padding-top: 3px; }
+
+.cell { position: relative; width: 108px; height: 108px; border-radius: 3px; }
+/* 类型底色：道具/终点用浅色底，保证叠加的数值徽章清晰可读 */
+.cell.empty { background: #ffffff; border: 1px solid #e0e0e0; }
+.cell.wall { background: repeating-linear-gradient(45deg, #546e7a 0 8px, #455a64 8px 16px);
+  border: 1px solid #37474f; }
+.cell.bomb { background: #ffcdd2; border: 1px solid #e57373; }
+.cell.apple { background: #c8e6c9; border: 1px solid #81c784; }
+.cell.terminal { background: #fff9c4; border: 1px solid #f9a825; }
+/* 中心徽章 = V̂(s)（SARSA 无 stateValue，展示派生贪心价值）：虚线边框 + ≈ 前缀区别于算法量；
+   道具/终点格把类型图标内嵌在徽章左侧 */
+.cell .s-badge {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  min-width: 70px; max-width: 100px; height: 23px; padding: 0 8px; border-radius: 12px;
+  font-size: 11.5px; font-weight: 600; line-height: 23px; text-align: center;
+  white-space: nowrap; border: 1px dashed #78909c;
+}
+/* Q 值徽章：四角各一，箭头指向对应外侧边（左上←、右上↑、右下→、左下↓），不与中心 V̂ 重叠；
+   当前贪婪动作的徽章由 JS 加粗描边 */
+.cell .q-badge { position: absolute; height: 17px; padding: 0 4px; border-radius: 9px;
+  font-size: 9.5px; line-height: 17px; white-space: nowrap; border: 1px solid rgba(0,0,0,.14);
+  font-family: Consolas, monospace; }
+.cell .q-left  { top: 2px;    left: 2px; }
+.cell .q-up    { top: 2px;    right: 2px; }
+.cell .q-right { bottom: 2px; right: 2px; }
+.cell .q-down  { bottom: 2px; left: 2px; }
+/* agent 位置环 */
+.cell.agent { box-shadow: inset 0 0 0 3px #ff8f00, inset 0 0 0 5px rgba(255, 143, 0, .35); }
+
+/* ---- 图例 ---- */
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: center;
+  border-top: 1px dashed #dde3ea; padding-top: 10px; font-size: 12px; color: #546e7a; }
+.legend .sw { display: inline-flex; align-items: center; gap: 5px; }
+.legend .chip { width: 15px; height: 15px; border-radius: 3px; display: inline-block; text-align: center;
+  font-size: 10px; line-height: 15px; }
+.legend .chip.border { border: 1px solid #b0bec5; }
+.legend .ramp { width: 130px; height: 12px; border-radius: 6px;
+  background: linear-gradient(90deg, #ffcdd2, #ffebee 30%, #eceff1 50%, #e3f2fd 70%, #1565c0);
+  border: 1px solid #b0bec5; position: relative; }
+.legend .ramp b { position: absolute; right: 0; top: -16px; font-size: 10px; color: #1565c0; }
+.legend .ramp i { position: absolute; left: 0; top: -16px; font-style: normal; font-size: 10px; color: #c62828; }
+.legend .ramp::after { content: "0"; position: absolute; left: 50%; top: -16px; transform: translateX(-50%);
+  font-size: 10px; color: #90a4ae; font-style: normal; }
+
+/* ---- 右：信息面板 ---- */
+.info-col { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+.kv .k { color: #78909c; }
+.kv .v { font-family: Consolas, monospace; }
+.progress { height: 6px; border-radius: 3px; background: #eceff1; margin-top: 8px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: #1e88e5; border-radius: 3px; transition: width .15s; }
+
+.action-detail { font-size: 12.5px; line-height: 1.9; }
+.action-detail .big { font-size: 15px; font-weight: 700; color: #0d47a1; }
+.action-detail .td-line { font-family: Consolas, "Microsoft YaHei", monospace; font-size: 12px; }
+.r-plus { color: #1b5e20; font-weight: 600; }
+.r-minus { color: #b71c1c; font-weight: 600; }
+.note { background: #fff8e1; border: 1px solid #ffe082; border-radius: 5px; padding: 3px 8px; font-size: 12px; }
+
+/* ---- 过程面板（逐步 TD 更新单表） ---- */
+.proc-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pane-title { font-size: 12px; color: #90a4ae; margin-bottom: 4px; }
+/* 公式条：与表格每行一一对照的 TD 更新公式 */
+.formula { background: #e8f0fe; border: 1px solid #c9dcf7; border-radius: 6px;
+  padding: 5px 10px; font-size: 12px; color: #0d47a1; margin-bottom: 8px;
+  font-family: Consolas, "Microsoft YaHei", monospace; }
+table.proc { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.proc th { position: sticky; top: 0; background: #eceff1; text-align: right; padding: 4px 6px;
+  color: #546e7a; font-weight: 600; border-bottom: 1px solid #cfd8dc; white-space: nowrap; }
+table.proc td { text-align: right; padding: 3px 6px; font-family: Consolas, monospace;
+  border-bottom: 1px solid #f0f2f5; white-space: nowrap; }
+table.proc th.tl, table.proc td.tl { text-align: left; }
+.scroll { overflow-y: auto; flex: 1; min-height: 0; border: 1px solid #eceff1; border-radius: 6px; }
+.arrow { color: #90a4ae; }
+.delta-cell { font-weight: 600; }
+.empty-hint { color: #b0bec5; font-size: 13px; padding: 30px 0; text-align: center; }
+
+/* ============ 底部状态条 ============ */
+.statusbar { display: flex; align-items: center; gap: 10px; border-top: 1px solid #cfd8dc;
+  background: #fafbfc; padding: 7px 16px; font-size: 12.5px; color: #455a64; }
+.statusbar .dot { width: 9px; height: 9px; border-radius: 50%; background: #9e9e9e; flex: 0 0 auto; }
+.statusbar .dot.run { background: #43a047; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ====== 顶部工具栏：五个控制按钮 + 进度/参数徽章 ====== -->
+  <div class="toolbar">
+    <span class="title">SARSA 回放可视化 · map/1</span>
+    <button class="btn primary" id="btn-step" title="agent 按策略走一步，并立即用 TD 误差更新该 (s,a) 的 Q 值">⏵ 执行一次 action</button>
+    <button class="btn" id="btn-ep" title="从当前位置连续执行到本 episode 结束（每步即时更新 Q，无回合末结算）">⏭ 执行完当前 episode</button>
+    <button class="btn" id="btn-100" title="以当前 episode 为第 1 个，连续执行 100 个 episode">⏩⏩ 执行 100 个 episode</button>
+    <button class="btn" id="btn-all" title="以当前 episode 为第 1 个，一直执行到全部（1000）个 episode 结束">⏭⏭ 执行到所有 episode 结束</button>
+    <button class="btn reset" id="btn-reset" title="Q 表清零、回合计数归零、agent 回到起点">↺ reset</button>
+    <div class="badges">
+      <span class="sep"></span>
+      <span class="badge">episode <b id="lbl-ep">0</b> / 1000</span>
+      <span class="badge">action <b id="lbl-step">—</b> / —</span>
+      <span class="badge">agent 位置 (<b class="pos" id="lbl-pos">0, 0</b>)</span>
+      <span class="badge">累计奖励 <b id="lbl-reward">0</b></span>
+    </div>
+  </div>
+
+  <!-- ====== 主体：左地图 / 右信息 ====== -->
+  <div class="main">
+
+    <!-- ============ 左列：地图 + 图例 ============ -->
+    <div class="map-col">
+      <div class="card map-card">
+        <h3>网格世界（坐标与 CSV/World 一致：(0,0) 左下角，墙格不显示数值）</h3>
+        <div class="map-wrap" id="map-wrap"></div>
+        <div class="legend">
+          <span class="sw"><span class="chip border" style="background:#fff"></span>空</span>
+          <span class="sw"><span class="chip" style="background:#546e7a"></span>墙</span>
+          <span class="sw"><span class="chip" style="background:#ffcdd2">💣</span>炸弹</span>
+          <span class="sw"><span class="chip" style="background:#c8e6c9">🍎</span>苹果</span>
+          <span class="sw"><span class="chip" style="background:#fff9c4">🏁</span>终点</span>
+          <span class="sw"><span class="chip" style="box-shadow: inset 0 0 0 3px #ff8f00"></span>agent</span>
+          <span class="sw"><span class="chip border" style="border-style:dashed">≈</span>中心 V̂(s) = max<sub>a</sub>Q（派生）</span>
+          <span class="sw"><span class="chip" style="box-shadow:0 0 0 2px #263238"></span>贪婪动作</span>
+          <span class="sw">
+            <span class="ramp"><i>负·深</i><b>正·深</b></span>
+            <span>数值颜色：正蓝 / 负红，越深 | 值 | 越大</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 右列：状态 + 最近动作 + 过程 ============ -->
+    <div class="info-col">
+      <div class="card">
+        <h3>运行状态</h3>
+        <div class="kv">
+          <span class="k">当前 episode</span><span class="v" id="kv-ep">第 1 个（共 1000）</span>
+          <span class="k">当前 action</span><span class="v" id="kv-step">episode 尚未开始</span>
+          <span class="k">agent 位置</span><span class="v" id="kv-pos">(0, 0)</span>
+          <span class="k">回合累计奖励</span><span class="v" id="kv-total">0</span>
+        </div>
+        <div class="params" id="params"></div>
+        <div class="progress"><i id="bar"></i></div>
+      </div>
+
+      <div class="card">
+        <h3>最近一个 action 详情</h3>
+        <div class="action-detail" id="act-detail">
+          <div class="empty-hint" style="padding:12px 0">（尚无动作——点击「执行一次 action」开始演示）</div>
+        </div>
+      </div>
+
+      <div class="card proc-card">
+        <h3>最近一个 episode 的 Q 更新过程（逐步 TD）
+          <span style="margin-left:auto; font-size:11.5px; color:#90a4ae" id="pane-ep-tag"></span>
+        </h3>
+        <div class="pane-title">在线更新：每执行一步立即更新该 (s,a) 的 Q（正序 = 执行顺序）：</div>
+        <div class="formula" id="formula">① TD 目标 = r + γ·Q(s′,a′)&nbsp;&nbsp;② δ = TD 目标 − Q(s,a)&nbsp;&nbsp;③ Q(s,a) ← Q(s,a) + α·δ</div>
+        <div class="scroll"><div id="pane-body"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 底部状态条 ====== -->
+  <div class="statusbar"><span class="dot" id="st-dot"></span><span id="status-text">就绪</span></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+ * 界面原型 · SARSA 演示回放引擎
+ * - 地图布局与类型取自 map/1/map.csv（5×5，首行对应 y=4）
+ * - 内置 3 条演示 episode 路径；更新逻辑对齐 Sarsa.java：
+ *   每步 on-policy TD 更新 Q(s,a) ← Q(s,a) + α·(r + γ·Q(s′,a′) − Q(s,a))，
+ *   其中 a′ 为策略在 s′ 实际选择的下一动作（演示取路径下一步动作，
+ *   进入终点记 —，其 Q(s′,·) 恒为 0，自举项为 0）
+ * - 演示数值采用当前 Constants（每步步惩罚 −1；苹果 +20 → 净 +19；
+ *   炸弹 −50 → 净 −51；撞墙 −1 → 净 −2），与 intention-8 后的实现一致
+ * - 演示数值仅用于原型排版展示，不代表真实策略的统计结果
+ * ============================================================ */
+
+/* ---- 常量：与 Constants.java 对齐 ---- */
+var ALPHA = 0.5, GAMMA = 0.9, EPSILON = 0.1, MAX_EP = 1000;
+var DIR_ARROW = ["↑", "→", "↓", "←"];   // 方向 0上 1右 2下 3左
+var TYPE_EMOJI = { 2: "💣", 3: "🍎", 4: "🏁" };
+var T_EMPTY = 0, T_WALL = 1, T_BOMB = 2, T_APPLE = 3, T_TERM = 4;
+var TERMINAL = [4, 0];
+
+/* 初始地图：cellType[y][x]（y 自下而上；内容与 map/1/map.csv 一致） */
+var INIT_MAP = [
+  [0, 1, 0, 0, 4], // y=0
+  [0, 0, 0, 0, 3], // y=1
+  [0, 2, 0, 1, 0], // y=2
+  [0, 1, 0, 1, 0], // y=3
+  [0, 0, 0, 0, 0]  // y=4
+];
+function deepCopy(g) { return g.map(function (row) { return row.slice(); }); }
+
+/* ---- 演示 episode 路径：{fx,fy,tx,ty,d,r} 一步=一格 =====
+ * P1 主路径（+14）：绕墙吃到苹果（净 +19）后进入终点
+ * P2 撞墙两次再走主路（+12）：(0,0) 被访问 3 次，可演示同格逐步更新
+ * P3 踩炸弹路径（−38）：演示炸弹被消耗 + 大负数 TD 目标的红色展示
+ * 净奖励 = 步惩罚 −1 + 事件奖励（苹果 +20 / 炸弹 −50 / 撞墙 −1）  */
+function step(fx, fy, d, tx, ty, r) { return { fx: fx, fy: fy, d: d, tx: tx, ty: ty, r: r }; }
+var P1 = [
+  step(0,0,0,0,1,-1),  step(0,1,0,0,2,-1),  step(0,2,0,0,3,-1),  step(0,3,0,0,4,-1),
+  step(0,4,1,1,4,-1),  step(1,4,1,2,4,-1),  step(2,4,2,2,3,-1),  step(2,3,2,2,2,-1),
+  step(2,2,2,2,1,-1),  step(2,1,1,3,1,-1),  step(3,1,1,4,1,19),  step(4,1,2,4,0,-1)
+];
+var P2 = [
+  step(0,0,2,0,0,-2), step(0,0,3,0,0,-2)
+].concat(P1); // 之后沿主路径
+var P3 = [
+  step(0,0,0,0,1,-1), step(0,1,0,0,2,-1), step(0,2,1,1,2,-51), step(1,2,2,1,1,-1),
+  step(1,1,1,2,1,-1), step(2,1,1,3,1,-1), step(3,1,1,4,1,19), step(4,1,2,4,0,-1)
+];
+var PATHS = [P1, P2, P3];
+/* episode 路径选择模式（1/2/3 分别对应 P1/P2/P3），按 epIndex 循环 */
+var PATTERN = [1, 2, 1, 1, 3, 1, 1, 2, 1, 3];
+function pickPath(epIndex) { return PATHS[PATTERN[epIndex % PATTERN.length] - 1]; }
+
+/* ---- 运行状态 ---- */
+var cellType = deepCopy(INIT_MAP);   // 动态类型（道具被吃后变空）
+var qMap = {};                       // "x,y,d" → 动作值（SARSA 只有 Q 表）
+var epIndex = 0;                     // 已完成 episode 数
+var cur = null;                      // 进行中的 episode 回放上下文
+var panel = null;                    // 过程面板数据：{epNo, rows, active, totalReward}
+var lastStepInfo = null;             // 最近一次单步信息（供详情卡渲染）
+
+/* ---- 地图 DOM 构建：5 行，行内 y 轴标签 + 5 格 ---- */
+var cellEls = [];
+(function buildMap() {
+  var wrap = document.getElementById("map-wrap");
+  var frag = document.createDocumentFragment();
+  for (var gy = 4; gy >= 0; gy--) {           // 从上（y=4）往下排
+    var yLabel = document.createElement("div");
+    yLabel.className = "y-label";
+    yLabel.textContent = "y=" + gy;
+    var row = document.createElement("div");
+    row.className = "grid-row";
+    var grid = document.createElement("div");
+    grid.className = "grid";
+    row.appendChild(yLabel);
+    row.appendChild(grid);
+    for (var x = 0; x < 5; x++) {
+      var c = document.createElement("div");
+      c.className = "cell";
+      c.dataset.x = x; c.dataset.y = gy;
+      var mkQ = function (cls) {
+        var q = document.createElement("div");
+        q.className = "q-badge " + cls;
+        c.appendChild(q);
+        return q;
+      };
+      var el = {
+        root: c, s: document.createElement("div"),
+        ql: mkQ("q-left"), qu: mkQ("q-up"), qr: mkQ("q-right"), qd: mkQ("q-down")
+      };
+      el.s.className = "s-badge";
+      c.appendChild(el.s);
+      cellEls.push(el);
+      grid.appendChild(c);
+    }
+    frag.appendChild(row);
+  }
+  // x 轴
+  var xAxis = document.createElement("div");
+  xAxis.className = "axis-x";
+  for (var x2 = 0; x2 < 5; x2++) {
+    var s = document.createElement("span");
+    s.textContent = "x=" + x2;
+    xAxis.appendChild(s);
+  }
+  frag.appendChild(xAxis);
+  wrap.appendChild(frag);
+})();
+
+function cellAt(x, y) { return cellEls[y * 5 + x]; }
+
+/* ---- 徽章配色：正蓝 / 负红，按 |v|/M 决定深浅；底色偏实保证道具浅底上也可读 ---- */
+function badgeColor(v, maxAbs) {
+  var t = maxAbs > 0 ? Math.min(1, Math.abs(v) / maxAbs) : 0;
+  if (t < 0.02) return { bg: "#eceff1", fg: "#78909c" };       // 0 值：灰底灰字
+  var rgb = v > 0 ? [21, 101, 192] : [198, 40, 40];            // 蓝 #1565c0 / 红 #c62828
+  var a = 0.35 + 0.65 * t;                                     // 浅色 → 实色
+  return { bg: "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + "," + a + ")",
+           fg: t > 0.5 ? "#fff" : "#1c2833" };                 // 深底白字 / 浅底深字
+}
+function fmt(v) { return (v > 0 ? "+" : "") + v.toFixed(2); }
+function fmtInt(v) { return (v > 0 ? "+" : "") + v; }
+
+/* ---- 全量渲染：类型底色 + agent 环 + 中心 V̂ / 四角 Q 徽章 ---- */
+function renderAll() {
+  var maxQ = 0;
+  cellEls.forEach(function (el) {
+    var x = +el.root.dataset.x, y = +el.root.dataset.y, t = cellType[y][x];
+    if (t !== T_WALL) {
+      for (var d = 0; d < 4; d++) maxQ = Math.max(maxQ, Math.abs(qMap[x + "," + y + "," + d] || 0));
+    }
+  });
+  cellEls.forEach(function (el) {
+    var x = +el.root.dataset.x, y = +el.root.dataset.y, t = cellType[y][x];
+    el.root.className = "cell " + ["empty", "wall", "bomb", "apple", "terminal"][t];
+    // 贪婪动作：该格四值不全相等时标出最大者（并列取其一；全 0 并列不标注）
+    var max = -Infinity, min = Infinity, bestD = 0;
+    for (var d0 = 0; d0 < 4; d0++) {
+      var v0 = qMap[x + "," + y + "," + d0] || 0;
+      if (v0 > max) { max = v0; bestD = d0; }
+      if (v0 < min) min = v0;
+    }
+    var hasBest = t !== T_WALL && max !== min;
+    // 中心 V̂(s) = max_a Q(s,a)：派生贪心价值（非算法量，虚线边框 + ≈ 前缀）
+    var vhat = max === -Infinity ? 0 : max;
+    el.s.style.display = t === T_WALL ? "none" : "";
+    if (t !== T_WALL) {
+      var sc = badgeColor(vhat, maxQ);
+      el.s.style.background = sc.bg; el.s.style.color = sc.fg;
+      // 道具/终点类型图标内嵌于 V̂ 徽章左侧
+      el.s.textContent = (TYPE_EMOJI[t] ? TYPE_EMOJI[t] + " " : "") + "≈ " + fmt(vhat);
+    }
+    [[el.ql, 3], [el.qu, 0], [el.qr, 1], [el.qd, 2]].forEach(function (item) {  // 左上← 右上↑ 右下→ 左下↓
+      var qb = item[0], d = item[1];
+      var q = qMap[x + "," + y + "," + d] || 0;
+      var c = badgeColor(q, maxQ);
+      qb.style.background = c.bg; qb.style.color = c.fg;
+      qb.textContent = DIR_ARROW[d] + fmt(q);
+      qb.style.display = t === T_WALL ? "none" : "";
+      qb.style.border = (hasBest && d === bestD) ? "2px solid #263238" : "1px solid rgba(0,0,0,.14)";
+    });
+    // agent 环（位置由当前回放上下文决定）
+    var ax = cur ? cur.pos[0] : 0, ay = cur ? cur.pos[1] : 0;
+    el.root.classList.toggle("agent", t !== T_WALL && x === ax && y === ay);
+  });
+}
+
+/* ---- 单步推进（对齐 Sarsa.java 主循环）：走一步、立即 TD 更新 ----
+ * ① 取 Q(s,a) → ② move（消耗到达格道具）→ ③ 策略在 s′ 选 a′
+ * → ④ Q(s,a) ← Q(s,a) + α·(r + γ·Q(s′,a′) − Q(s,a))                     */
+function startEpisode() {
+  var path = pickPath(epIndex);
+  cellType = deepCopy(INIT_MAP);                   // 每局从初始地图开始（道具还原）
+  cur = { path: path, pos: [0, 0], total: 0, no: 0, rows: [] };
+  panel = { epNo: epIndex + 1, rows: [], active: true, totalReward: 0 };
+}
+function stepOnce() {
+  if (!cur) startEpisode();
+  var s = cur.path[cur.no], x = s.fx, y = s.fy;
+  var qKey = x + "," + y + "," + s.d;
+  var qOld = qMap[qKey] || 0;                                  // ① Q(s,a) 更新前
+  // ② 移动：消耗发生在到达格（真实进入才消耗；撞墙/越界原地不误伤脚下格）
+  var destT = cellType[s.ty][s.tx];                            // 到达格类型（移动前）
+  if (destT === T_APPLE || destT === T_BOMB) cellType[s.ty][s.tx] = T_EMPTY;
+  cur.no++;
+  cur.total += s.r;
+  cur.pos = [s.tx, s.ty];
+  // ③ 策略在 s′ 选下一动作 a′（on-policy 自举）；演示取路径下一步动作，终点记 —
+  var last = cur.no >= cur.path.length;
+  var na = last ? -1 : cur.path[cur.no].d;
+  var nq = last ? 0 : (qMap[s.tx + "," + s.ty + "," + na] || 0);
+  // ④ TD 更新
+  var target = s.r + GAMMA * nq;
+  var delta = target - qOld;
+  var qNew = qOld + ALPHA * delta;
+  qMap[qKey] = qNew;
+  // 过程面板行（正序 = 执行顺序）与详情卡数据
+  var row = { no: cur.no, x: x, y: y, d: s.d, r: s.r, tx: s.tx, ty: s.ty,
+              na: na, nq: nq, target: target, delta: delta, qOld: qOld, qNew: qNew };
+  cur.rows.push(row);
+  panel.rows.push(row);
+  // 动作文案：由到达格类型与奖励直判（修正 MC 原型「错挂一步」的问题）
+  var note;
+  if (destT === T_APPLE) note = "吃到苹果 🍎，奖励 +19（步惩罚 −1 + 苹果 +20）";
+  else if (destT === T_BOMB) note = "踩中炸弹 💣，奖励 −51（步惩罚 −1 + 炸弹 −50）";
+  else if (destT === T_TERM) note = "进入终点 🏁，本回合结束（奖励 −1 = 步惩罚）";
+  else if (s.r < 0) note = "撞墙 / 越界，留在原地，奖励 −2（步惩罚 −1 + 撞墙 −1）";
+  else note = "进入空格子，奖励 −1（步惩罚）";
+  lastStepInfo = { epNo: epIndex + 1, no: cur.no, total: cur.path.length, fx: x, fy: y,
+                   d: s.d, tx: s.tx, ty: s.ty, r: s.r, totalR: cur.total, note: note,
+                   na: na, nq: nq, target: target, delta: delta, qOld: qOld, qNew: qNew };
+  panel.totalReward = cur.total;
+  if (destT === T_TERM || last) finalizeEpisode();             // 进入终点（或步数耗尽）即回合终了
+}
+/* ---- 回合终了：SARSA 无回合末结算——更新已逐歩完成，仅切换状态 ---- */
+function finalizeEpisode() {
+  panel.active = false;
+  epIndex++;
+  cur = null;
+}
+function untilEpDone() { var guard = 0; while (cur && guard++ < 1000) stepOnce(); }
+
+/* ---- 快进 n 个 episode（以当前 episode 为第 1 个）---- */
+function fastForward(n) {
+  var startNo = epIndex + (cur ? 1 : 0);
+  var target = startNo + n;
+  while (epIndex < target && epIndex < MAX_EP) {
+    if (!cur) startEpisode();
+    untilEpDone();
+  }
+  renderAll(); syncTop();
+}
+/* ---- 全部结束（补足到 MAX_EP）---- */
+function runAll() {
+  var rest = MAX_EP - (epIndex + (cur ? 1 : 0));
+  fastForward(rest);
+}
+
+/* ---- 算法参数条：α（Q 学习率）/ γ / ε / α 衰减状态（取值来自常量，避免两处维护） ---- */
+(function initParams() {
+  document.getElementById("params").innerHTML =
+    [["α", "Q 学习率", ALPHA], ["γ", "折扣因子", GAMMA], ["ε", "探索率", EPSILON]].map(function (p) {
+      return "<span><b>" + p[0] + "</b> = " + p[1] + " <i>(" + p[2] + ")</i></span>";
+    }).join("") + "<span><b>α 衰减</b> <i>(关)</i></span>";
+})();
+
+/* ========================== UI 同步 ========================== */
+function syncTop() {
+  var epNo = epIndex + (cur ? 1 : 0);
+  document.getElementById("lbl-ep").textContent = epNo;
+  var totalSteps = cur ? cur.path.length : 0;
+  document.getElementById("lbl-step").textContent = cur ? cur.no : "—";
+  document.getElementById("kv-step").textContent = cur
+    ? "本 episode 第 " + cur.no + " / " + totalSteps + " 个 action"
+    : "episode 已结束 / 尚未开始";
+  document.getElementById("lbl-pos").textContent = (cur ? cur.pos : [0, 0]).join(", ");
+  document.getElementById("kv-pos").textContent = "(" + (cur ? cur.pos : [0, 0]).join(", ") + ")";
+  document.getElementById("lbl-reward").textContent = cur ? cur.total : 0;
+  document.getElementById("kv-total").textContent = cur ? cur.total : 0;
+  document.getElementById("kv-ep").textContent = "第 " + epNo + " 个（共 " + MAX_EP + "）";
+  document.getElementById("bar").style.width = (100 * epNo / MAX_EP) + "%";
+}
+function setStatus(msg, running) {
+  document.getElementById("status-text").textContent = msg;
+  var dot = document.getElementById("st-dot");
+  dot.className = "dot" + (running ? " run" : "");
+}
+function fillActionDetail() {
+  var box = document.getElementById("act-detail");
+  if (!lastStepInfo) return;
+  var info = lastStepInfo;
+  var cls = info.r > 0 ? "r-plus" : (info.r < 0 ? "r-minus" : "");
+  var cq = info.qNew > info.qOld ? "#1565c0" : (info.qNew < info.qOld ? "#c62828" : "#455a64");
+  box.innerHTML = "<div class=\"big\">第 " + info.no + " / " + info.total + " 步 · episode " + info.epNo +
+    "</div>" +
+    "<div>从 (<b>" + info.fx + ", " + info.fy + "</b>) 向 " + DIR_ARROW[info.d] + " → 到达 (<b>" +
+    info.tx + ", " + info.ty + "</b>)</div>" +
+    "<div>即时奖励 <span class=\"" + cls + "\">" + fmtInt(info.r) + "</span> · " +
+    "累计奖励 <span class=\"" + cls + "\">" + fmtInt(info.totalR) + "</span></div>" +
+    "<div class=\"td-line\">下一动作 a′ " + (info.na >= 0 ? DIR_ARROW[info.na] + "（自举项）" : "—（已进入终点，Q(s′,·) 恒为 0）") +
+    " · Q(s′,a′) = " + info.nq.toFixed(2) + "</div>" +
+    "<div class=\"td-line\">TD 目标 <b>" + info.target.toFixed(2) + "</b> · δ = <b>" + fmt(info.delta) +
+    "</b> · Q(s,a)： " + info.qOld.toFixed(2) + " → <b style=\"color:" + cq + "\">" +
+    info.qNew.toFixed(2) + "</b></div>" +
+    "<div class=\"note\">" + info.note + "</div>";
+}
+function fillPanels() {
+  var body = document.getElementById("pane-body");
+  if (!panel) { body.innerHTML = "<div class=\"empty-hint\">（暂无数据——执行 action 后此处逐步展示 Q 的 TD 更新）</div>"; return; }
+  var tag = "episode #" + panel.epNo + (panel.active
+    ? "（进行中）· 已更新 " + panel.rows.length + " 步 · 累计奖励 " + fmtInt(panel.totalReward)
+    : " · 共 " + panel.rows.length + " 步 · 累计奖励 " + fmtInt(panel.totalReward));
+  document.getElementById("pane-ep-tag").textContent = tag;
+  var html = "<table class=\"proc\">" +
+    "<tr><th>步</th><th>状态 (x,y)</th><th>a</th><th>r</th><th>到达 s′</th><th>a′</th>" +
+    "<th>Q(s′,a′)</th><th>TD 目标</th><th>δ</th><th class=\"tl\">Q(s,a)：前 → 后</th></tr>";
+  panel.rows.forEach(function (row) {
+    html += "<tr><td>" + row.no + "</td><td>(" + row.x + ", " + row.y + ")</td>" +
+      "<td>" + DIR_ARROW[row.d] + "</td><td>" + row.r + "</td>" +
+      "<td>(" + row.tx + ", " + row.ty + ")</td><td>" +
+      (row.na >= 0 ? DIR_ARROW[row.na] : "—") + "</td><td>" + row.nq.toFixed(2) +
+      "</td><td>" + row.target.toFixed(2) + "</td>" +
+      "<td class=\"delta-cell\" style=\"color:" + (row.delta > 0 ? "#1565c0" : row.delta < 0 ? "#c62828" : "#455a64") +
+      "\">" + fmt(row.delta) + "</td>" +
+      "<td class=\"tl\">" + row.qOld.toFixed(2) + " <span class=\"arrow\">→</span> " +
+      "<b style=\"color:" + (row.qNew > row.qOld ? "#1565c0" : row.qNew < row.qOld ? "#c62828" : "#455a64") +
+      "\">" + row.qNew.toFixed(2) + "</b></td></tr>";
+  });
+  body.innerHTML = html + "</table>";
+}
+function syncAll() { renderAll(); syncTop(); }
+
+/* ---- 按钮事件 ---- */
+document.getElementById("btn-step").onclick = function () {
+  if (!cur && epIndex >= MAX_EP) { setStatus("全部 episode 已完成，请先 reset"); return; }
+  if (!cur) setStatus("episode " + (epIndex + 1) + " 开始执行……", true);
+  stepOnce();
+  fillActionDetail(); fillPanels(); syncAll();
+  setStatus(cur ? "episode " + (epIndex + 1) + " 执行中：已完成 " + cur.no + " / " + cur.path.length +
+    " 个 action（Q 已逐步更新）"
+    : "episode " + epIndex + " 结束：本回合 Q 已全部更新，点击按钮开始下一个 episode", true);
+};
+document.getElementById("btn-ep").onclick = function () {
+  if (epIndex >= MAX_EP && !cur) { setStatus("全部 episode 已完成，请先 reset"); return; }
+  var startNo = epIndex + (cur ? 1 : 0);
+  if (!cur) startEpisode();
+  setStatus("episode " + startNo + " 快进执行中……", true);
+  untilEpDone();
+  fillActionDetail(); fillPanels(); syncAll();
+  setStatus("episode " + startNo + " 已执行完毕：累计奖励 " + fmtInt(panel.totalReward) +
+    "（每步 TD 更新已完成），过程面板已刷新", true);
+};
+document.getElementById("btn-100").onclick = function () {
+  if (epIndex >= MAX_EP && !cur) { setStatus("全部 episode 已完成，请先 reset"); return; }
+  var startNo = epIndex + (cur ? 1 : 0);
+  var n = Math.min(100, MAX_EP - startNo);
+  if (n <= 0) return;
+  setStatus("正在快进 " + n + " 个 episode（从第 " + startNo + " 个开始）……", true);
+  fastForward(n);
+  fillActionDetail(); fillPanels();
+  setStatus("已执行到 episode " + epIndex + "（完成 " + n + " 个）：过程面板展示最近一个 episode 的逐步更新", true);
+};
+document.getElementById("btn-all").onclick = function () {
+  if (epIndex >= MAX_EP && !cur) { setStatus("全部 episode 已完成，请先 reset"); return; }
+  setStatus("正在执行至全部 episode 结束……", true);
+  runAll();
+  fillActionDetail(); fillPanels();
+  setStatus("已执行完全部 " + MAX_EP + " 个 episode；Q 表为最终收敛结果", true);
+};
+document.getElementById("btn-reset").onclick = function () {
+  epIndex = 0; cur = null; panel = null; lastStepInfo = null;
+  qMap = {}; cellType = deepCopy(INIT_MAP);
+  document.getElementById("pane-body").innerHTML =
+    "<div class=\"empty-hint\">（暂无数据——执行 action 后此处逐步展示 Q 的 TD 更新）</div>";
+  document.getElementById("pane-ep-tag").textContent = "";
+  document.getElementById("act-detail").innerHTML =
+    "<div class=\"empty-hint\" style=\"padding:12px 0\">（尚无动作——点击「执行一次 action」开始演示）</div>";
+  syncAll();
+  setStatus("已 reset：Q 清零、计数归零、agent 回到起点 (0, 0)");
+};
+
+/* ---- 初始画面：预演 300 个 episode，让 Q 颜色分布可见；之后从第 301 个 episode 开始演示 ---- */
+setStatus("原型初始化：预演 300 个 episode（演示路径）以填充数值色阶……", true);
+fastForward(300);
+syncAll();
+setStatus("原型就绪：地图已预演 300 个 episode（仅供配色演示）。点击「执行一次 action」从第 301 个 episode 开始逐步回放，每步即时更新 Q", true);
+</script>
+</body>
+</html>
