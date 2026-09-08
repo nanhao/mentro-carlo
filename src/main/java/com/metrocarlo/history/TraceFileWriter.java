@@ -10,12 +10,13 @@ import java.time.format.DateTimeFormatter;
 import com.metrocarlo.common.Constants;
 
 /**
- * trace 导出写盘：目录组织与命名规则见 design/3/README.md §二，序列化见
- * {@link TraceJsonWriter}。
+ * trace 导出写盘：目录组织与命名规则见 design/3/README.md §二（sarsa 算法段增量见
+ * design/12/README.md §二），序列化见 {@link TraceJsonWriter}。
  * <p>
- * 每次运行写入一个新 run 目录（data/trace/map-&lt;N&gt;/run-&lt;yyyyMMdd-HHmmss&gt;/trace.json），
- * 不覆盖旧运行；同一秒内多次运行时目录名追加 -2、-3…。写入前补全 meta 中属
- * 导出上下文的字段（mapPath / exportedAt）。
+ * 每次运行写入一个新 run 目录（data/trace/[算法段/]map-&lt;N&gt;/run-&lt;yyyyMMdd-HHmmss&gt;/trace.json），
+ * 不覆盖旧运行；同一秒内多次运行时目录名追加 -2、-3…。算法段由 meta.algorithm 决定：
+ * montecarlo 省略（兼容既有布局与 viewer 发现规则），其余算法取 algorithm 值作段名。
+ * 写入前补全 meta 中属导出上下文的字段（mapPath / exportedAt）。
  */
 public final class TraceFileWriter {
 
@@ -34,7 +35,7 @@ public final class TraceFileWriter {
     /**
      * 补全导出上下文字段并把 trace 序列化写入新 run 目录。
      *
-     * @param trace   待导出的 trace（meta 中算法上下文字段已由 MonteCarlo 采集）
+     * @param trace   待导出的 trace（meta 中算法上下文字段已由各算法采集时填写）
      * @param mapPath 源地图相对路径，如 map/1/map.csv（既写入 meta.mapPath，也用于推导 map-&lt;N&gt; 分组目录）
      * @return 写入的 trace.json 完整路径
      */
@@ -43,15 +44,22 @@ public final class TraceFileWriter {
         meta.setMapPath(mapPath);
         meta.setExportedAt(LocalDateTime.now().format(EXPORTED_AT));
 
-        Path runDirectory = createRunDirectory(mapPath);
+        Path runDirectory = createRunDirectory(meta.getAlgorithm(), mapPath);
         Path traceFile = runDirectory.resolve(TRACE_FILE_NAME);
         Files.writeString(traceFile, TraceJsonWriter.toJson(trace), StandardCharsets.UTF_8);
         return traceFile;
     }
 
-    /** 逐级创建 data/trace/map-&lt;N&gt;/run-&lt;时间戳&gt;，同秒冲突时追加 -2、-3…，返回 run 目录 */
-    private static Path createRunDirectory(String mapPath) throws IOException {
-        Path groupDirectory = TRACE_ROOT.resolve(mapGroupName(mapPath));
+    /**
+     * 逐级创建 data/trace/[算法段/]map-&lt;N&gt;/run-&lt;时间戳&gt;，同秒冲突时追加 -2、-3…，返回 run 目录。
+     * 算法段：montecarlo 省略（兼容既有布局），其余取 meta.algorithm 值（design/12 §二）。
+     */
+    private static Path createRunDirectory(String algorithm, String mapPath) throws IOException {
+        Path base = TRACE_ROOT;
+        if (algorithm != null && !TraceMeta.ALGORITHM_MONTECARLO.equals(algorithm)) {
+            base = base.resolve(algorithm);
+        }
+        Path groupDirectory = base.resolve(mapGroupName(mapPath));
         Files.createDirectories(groupDirectory);
 
         String baseName = "run-" + LocalDateTime.now().format(RUN_TIMESTAMP);

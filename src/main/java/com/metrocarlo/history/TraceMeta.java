@@ -5,22 +5,30 @@ import lombok.Data;
 
 /**
  * trace 元信息（JSON 中 meta 对象），
- * 字段与 design/3/README.md §3.1「顶层 / meta 字段字典」一一对应。
+ * 字段与 design/3/README.md §3.1「顶层 / meta 字段字典」及 design/12/README.md §3.1 增量一一对应。
  * <p>
- * 字段按生成时机拆分：地图与算法上下文（width/height/initialMap/start/alpha/gamma/epsilon/
- * maxEpisode/maxStepsPerEpisode/version）由 MonteCarlo 采集时填写；
- * mapPath/seed/exportedAt 属导出上下文，由导出入口（后续任务）补充，未填写时为 null。
+ * 字段按生成时机拆分：地图与算法上下文（algorithm/width/height/initialMap/start/alpha/gamma/
+ * epsilon/maxEpisode/maxStepsPerEpisode/version）由各算法采集时填写（TraceFactory 统一构建）；
+ * mapPath/seed/exportedAt 属导出上下文，由导出入口补充，未填写时为 null。
  */
 @Data
 @Builder
 public class TraceMeta {
 
-    /** 当前 trace 格式版本号 */
-    public static final int VERSION = 1;
+    /** 当前 trace 格式版本号：v2 = 新增 meta.algorithm（visits 行字段集按 algorithm 区分，见 design/12 §3.1） */
+    public static final int VERSION = 2;
+
+    /** 算法标识取值：蒙特卡洛（默认；v1 旧文件无 algorithm 字段亦视为 montecarlo） */
+    public static final String ALGORITHM_MONTECARLO = "montecarlo";
+    /** 算法标识取值：Sarsa（时序差分，visits 行含 td 更新明细） */
+    public static final String ALGORITHM_SARSA = "sarsa";
 
     /** 格式版本号（schema 演进时递增，旧文件据此识别） */
     @Builder.Default
     private int version = VERSION;
+    /** 采集算法标识：montecarlo | sarsa（GUI 加载任意 trace 时据此分发回放引擎） */
+    @Builder.Default
+    private String algorithm = ALGORITHM_MONTECARLO;
     /** 源地图相对路径，如 map/1/map.csv（导出入口补充） */
     private String mapPath;
     /** 网格尺寸：列数 */

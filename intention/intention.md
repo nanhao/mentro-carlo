@@ -59,3 +59,7 @@
 
 # intention-11
 这是一个重构任务，把 history 包从 world 包里提出来，放到跟 world 同级。不需要写测试。重构完跑 mvn test 通过就行
+
+# intention-12
+这个任务是设计并实现 sarsa 的 trace 数据生成。
+原型已经准备好，在 intention-10 中，你需要按照原型设计trace数据，尽可能复用 mentecarlo 的 trace 机制。

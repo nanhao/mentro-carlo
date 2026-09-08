@@ -1,15 +1,18 @@
 package com.metrocarlo.history;
 
+import com.metrocarlo.common.Constants;
+
 import lombok.Builder;
 import lombok.Data;
 
 /**
- * trace 中一次状态访问记录（JSON 中 visits 数组的一行），
- * 字段与 design/3/README.md §3.1「visits[] 字段字典」一一对应。
+ * trace 中一行更新记录（JSON 中 visits 数组的一行），
+ * 字段与 design/3/README.md §3.1「visits[] 字段字典」及 design/12/README.md §3.3 增量一一对应。
  * <p>
- * 采集语义（design/3 §五）：每行对应回合结束后结算循环中的一次处理
- * ——先算 G = reward + discountedNextG，随即更新该格 stateValue 与该 (状态, 动作) 的 qValue；
- * 同一格多次访问逐行记录（无 first-visit 覆盖）。
+ * 行语义与行序按算法区分（见 {@link EpisodeTrace} 说明）：
+ * montecarlo 行 = 回合结束后结算循环中的一次处理（先算 G 随即更新 S/Q，行序倒序）；
+ * sarsa 行 = 一步在线 TD 更新（行内 td 携带明细，行序正序）。
+ * 两种行共用公共 12 字段与 qOld/qNew；算法专属字段互不设置、JSON 互不输出。
  */
 @Data
 @Builder
@@ -23,6 +26,29 @@ public class VisitRecord {
     public static final String ACTION_DOWN = "down";
     /** 动作方向字符串取值：left（对应 Constants.DIRECTION_LEFT） */
     public static final String ACTION_LEFT = "left";
+
+    /**
+     * 方向常量 → trace 动作字符串（取值见 ACTION_*，与 JSON 格式约定一致）。
+     * 供各算法采集点复用（原为 MonteCarlo 私有方法，随 sarsa 采集入 design/12 提升到此处）。
+     *
+     * @param direction 方向常量（见 Constants.DIRECTION_*）
+     * @return 动作字符串 up | right | down | left
+     * @throws IllegalArgumentException 方向非法时抛出
+     */
+    public static String actionName(int direction) {
+        switch (direction) {
+            case Constants.DIRECTION_UP:
+                return ACTION_UP;
+            case Constants.DIRECTION_RIGHT:
+                return ACTION_RIGHT;
+            case Constants.DIRECTION_DOWN:
+                return ACTION_DOWN;
+            case Constants.DIRECTION_LEFT:
+                return ACTION_LEFT;
+            default:
+                throw new IllegalArgumentException("Invalid direction: " + direction);
+        }
+    }
 
     /** episode 内正序步号（1 起）；GUI 回放顺序 = 按 no 升序 */
     private int no;
@@ -48,12 +74,14 @@ public class VisitRecord {
     private double discountedNextG;
     /** 本行回报 = reward + discountedNextG */
     private double G;
-    /** 该格 stateValue 更新前取值 */
+    /** 该格 stateValue 更新前取值（montecarlo 行；sarsa 无 stateValue 不设置） */
     private double sOld;
-    /** 该格 stateValue 更新后取值 = sOld + alpha * (G - sOld) */
+    /** 该格 stateValue 更新后取值 = sOld + alpha * (G - sOld)（montecarlo 行） */
     private double sNew;
     /** 该 (状态, 动作) 的 qValue 更新前取值 */
     private double qOld;
-    /** 该 (状态, 动作) 的 qValue 更新后取值 = qOld + alpha * (G - qOld) */
+    /** 该 (状态, 动作) 的 qValue 更新后取值（montecarlo：qOld + alpha*(G - qOld)；sarsa：qOld + td.alpha*td.delta） */
     private double qNew;
+    /** sarsa 行的本步 TD 更新明细（design/12 §3.3）；montecarlo 行为 null 且 JSON 不输出 */
+    private TdUpdateRecord td;
 }
