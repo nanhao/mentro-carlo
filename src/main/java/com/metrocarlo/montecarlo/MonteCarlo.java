@@ -1,6 +1,7 @@
 package com.metrocarlo.montecarlo;
 
 import java.util.List;
+import java.util.Map;
 
 import com.metrocarlo.agent.EpsilonGreedyPolicy;
 import com.metrocarlo.agent.Policy;
@@ -26,7 +27,38 @@ import lombok.Setter;
  * 采集只读引用循环内既有局部量，不改动算法内容与循环顺序；
  * 批量实验（如策略对比）可通过 {@link #setCollectTrace(boolean)} 整体关闭采集。
  */
-public class MonteCarlo extends QAndSBuilder {
+public class MonteCarlo {
+    @Getter @Setter
+    private double alpha = Constants.DEFAULT_ALPHA;
+
+    @Getter @Setter
+    private double gamma = Constants.DEFAULT_GAMMA;
+
+    @Getter
+    private World world;
+
+    @Getter
+    private Map<StateActionPair, Double> qValues = new java.util.HashMap<>();
+
+    @Getter
+    private Map<Cell, Double> stateValues = new java.util.HashMap<>();
+
+    @Getter
+    private Map<StateActionPair, Double> qAlphas = new java.util.HashMap<>();
+
+    @Getter
+    private Map<Cell, Double> sAlphas = new java.util.HashMap<>();
+
+    @Getter @Setter
+    private int maxEpisode = Constants.DEFAULT_MAX_EPISODE;
+
+    /** 单个回合的最大步数上限，防止策略成环导致回合永不终止 */
+    @Getter @Setter
+    private int maxStepsPerEpisode = Constants.MAX_STEP_PER_EPISODE;
+
+    private int episodeCount = 0;
+
+    private Policy policy;
 
     /** 最近一次 buildQValuesAndSValues() 采集的 trace；运行前或关闭采集后为 null */
     @Getter
@@ -37,7 +69,8 @@ public class MonteCarlo extends QAndSBuilder {
     private boolean collectTrace = true;
 
     public MonteCarlo(World world, Policy policy) {
-        super(world, policy);
+        this.world = world;
+        this.policy = policy;
     }
 
     public void buildQValuesAndSValues() {

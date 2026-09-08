@@ -33,6 +33,9 @@ public class World {
     private int totalReward = 0;
 
     @Getter
+    private int lastReward = 0;
+
+    @Getter
     private List<ActionRecord> history = new ArrayList<>();
 
     public World(int width, int height) {
@@ -87,6 +90,7 @@ public class World {
         currentY = startY;
         stepCount = 0;
         totalReward = 0;
+        lastReward = 0;
         history.clear();
     }
 
@@ -238,6 +242,7 @@ public class World {
         stepCount++;
         int reward = Constants.STEP_PUNISH + computeReward(currentCell, nextCell);
         totalReward += reward;
+        lastReward = reward;
 
         if (nextCell == null || nextCell.getType() == Constants.CELL_TYPE_WALL) {
             nextCell = currentCell;
