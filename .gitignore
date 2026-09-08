@@ -29,6 +29,9 @@ data/trace/
 # 策略对比实验产物（可由 PolicyComparison 一键再生成，见 scripts/manual.md）
 data/compare/
 
+# 算法对比实验产物（可由 AlgorithmComparison 一键再生成，见 scripts/manual.md）
+data/algorithm-compare/
+
 __pycache__/
 
 temp/

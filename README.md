@@ -61,7 +61,7 @@ agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
 ## 当前状态与快速开始
 
-核心链路已实现：网格世界（`world` 包：`World` + `CsvParser`）→ 决策策略（`agent` 包：`RandomPolicy`、`EpsilonGreedyPolicy`）→ 蒙特卡洛评估与控制 / Sarsa / Q-learning 在线 TD 控制（`montecarlo` 包）→ trace 导出与 Python GUI 回放（`montecarlo_viewer.py` / `sarsa_viewer.py` / `qlearning_viewer.py`）→ 地图 1-10 的策略对比实验与可视化。
+核心链路已实现：网格世界（`world` 包：`World` + `CsvParser`）→ 决策策略（`agent` 包：`RandomPolicy`、`EpsilonGreedyPolicy`）→ 蒙特卡洛评估与控制 / Sarsa / Q-learning 在线 TD 控制（`montecarlo` 包）→ trace 导出与 Python GUI 回放（`montecarlo_viewer.py` / `sarsa_viewer.py` / `qlearning_viewer.py`）→ 地图 1-10 的策略对比实验与可视化（策略 ε 扫描 + montecarlo/sarsa/q-learning 三算法对比）。
 
 ```bash
 # 编译并运行主类：跑一轮 Q-learning 在线 TD 控制，并把 trace 导出到 data/trace/qlearning（供 qlearning_viewer.py 回放；Main 内可切换 runSarsaOnOneMap / runMonteCarloOnOneMap → sarsa / 蒙特卡洛）
@@ -83,8 +83,8 @@ metro-carlo/
 ├── pom.xml                          # Maven 构建配置（JDK 21 + JUnit 5 + exec 运行插件）
 ├── README.md                        # 项目说明（本文件，含游戏设定）
 ├── map/                             # 内置 10 张地图（generate_maps.py 生成 CSV，render_maps.py 渲染 PNG）
-├── scripts/                         # Python 入口脚本：地图生成/渲染、trace 回放查看器、策略对比可视化（详见 scripts/manual.md）
-├── data/                            # 运行产物（已 gitignore，可一键再生成）：trace/ 回合轨迹，compare/ 策略对比结果
+├── scripts/                         # Python 入口脚本：地图生成/渲染、trace 回放查看器、策略/算法对比可视化（详见 scripts/manual.md）
+├── data/                            # 运行产物（已 gitignore，可一键再生成）：trace/ 回合轨迹，compare/ 策略对比结果，algorithm-compare/ 算法对比结果
 └── src/
     ├── main/java/com/metrocarlo/
     │   ├── Main.java                # 入口一：跑一轮 Q-learning 并导出 trace（mvn compile exec:java；可切换 Sarsa/蒙特卡洛）
@@ -92,7 +92,7 @@ metro-carlo/
     │   ├── history/                 # trace 数据结构与导出：Trace/VisitRecord/TdUpdateRecord 与各 Writer
     │   ├── agent/                   # 决策策略：Policy、RandomPolicy、EpsilonGreedyPolicy
     │   ├── montecarlo/              # 蒙特卡洛评估与控制 / Sarsa / Q-learning：MonteCarlo、Sarsa、QLearning、TraceFactory
-    │   ├── experiment/              # 策略对比实验：PolicyComparison 入口与 results.json 写盘
+    │   ├── experiment/              # 批量对比实验：PolicyComparison（策略 ε 扫描，intention-7）/ AlgorithmComparison（三算法对比，intention-16）入口与 results.json 写盘
     │   └── common/                  # 常量与 JSON 拼接工具（Constants、JsonAppender）
     └── test/java/com/metrocarlo/    # 单元测试（WorldTest、CsvParserTest）
 ```
@@ -125,6 +125,20 @@ python scripts/compare_policies.py
 ```
 
 实验结论：10 张地图上 **ε=0.1 均取得最优**平均贪婪奖励；ε 越大，Q 表被随机动作污染越重，效果单调下降；RandomPolicy 接近最差。数据格式与常见问题见 `scripts/manual.md` 末尾章节。
+
+## 算法对比实验（intention-16）
+
+在 10 张内置地图上比较 **MonteCarlo / Sarsa / Q-learning** 三种算法在 **ε = 1**（行为策略全程随机探索，训练回合行为分布三种算法完全一致）下的学习效果：每种算法独立重复 50 次「从零训练 1000 个 episode → 用学到的 Q 表按全程贪婪走一遍」，统计贪婪回合总奖励的均值与标准差。结果格式与策略对比实验同构但分属独立目录（`data/algorithm-compare/run-<时间戳>/results.json`），两套 schema 互不影响。
+
+```bash
+# 第一步：Java 端跑实验（可加 --episodes/--repetitions 缩小规模）
+mvn compile exec:java "-Dexec.mainClass=com.metrocarlo.experiment.AlgorithmComparison"
+
+# 第二步：Python 端出图：compare_per_map.png（每图一子图对比）与 compare_summary.png（全地图三算法均值对比）
+python scripts/compare_algorithms.py
+```
+
+实验结论：ε=1 时训练回合行为等价于全随机（同 intention-7 的 RandomPolicy），三种算法的差异仅来自更新机制——回合末回报结算的蒙特卡洛几乎学不到可贪婪利用的 Q 表（500 次贪婪评估仅 52 次抵达终点，全地图平均 -1376）；每步即时更新、能利用后继状态信息的 TD 类算法明显更好：Sarsa 全地图平均 -1148、Q-learning -1265。按单图胜场 Q-learning 5 张最优（地图 1/4/5/7/9）、Sarsa 4 张（2/3/8/10）、蒙特卡洛仅地图 6——Sarsa 的均值领先主要来自地图 8 的突出表现（平均 -123.68，47/50 抵达终点）。与 intention-7「ε 越大效果越差」的结论一致，纯随机行为下无论哪种算法都无法稳定复现 ε=0.1 时的贪婪表现。
 
 ## 开发约定
 

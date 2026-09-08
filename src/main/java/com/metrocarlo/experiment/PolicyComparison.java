@@ -1,17 +1,13 @@
 package com.metrocarlo.experiment;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
 import com.metrocarlo.agent.EpsilonGreedyPolicy;
 import com.metrocarlo.agent.Policy;
 import com.metrocarlo.agent.RandomPolicy;
-import com.metrocarlo.agent.StateActionPair;
 import com.metrocarlo.common.Constants;
 import com.metrocarlo.montecarlo.MonteCarlo;
 import com.metrocarlo.world.World;
@@ -42,8 +38,6 @@ public final class PolicyComparison {
     /** ε-贪婪探索率扫描序列（intention-7：0.1 递增到 0.9） */
     private static final List<Double> EPSILONS =
             List.of(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9);
-    /** 地图根目录（相对项目根；子目录名为纯数字编号，各含 map.csv） */
-    private static final Path MAP_ROOT = Path.of("map");
     /** 命令行参数名：覆盖每次训练的 episode 数 */
     private static final String ARG_EPISODES = "--episodes";
     /** 命令行参数名：覆盖每个策略配置的重复次数 */
@@ -68,14 +62,14 @@ public final class PolicyComparison {
             }
         }
 
-        List<String> mapPaths = discoverMaps();
+        List<String> mapPaths = MapDiscovery.discoverMaps();
         System.out.printf("策略对比实验：%d 张地图 × %d 种策略（random + ε=0.1~0.9）× %d 次重复 × 每次 %d episode%n",
                 mapPaths.size(), EPSILONS.size() + 1, repetitions, episodes);
 
         ExperimentMeta meta = new ExperimentMeta(episodes, repetitions,
                 Constants.DEFAULT_ALPHA, Constants.DEFAULT_GAMMA,
                 Constants.MAX_STEP_PER_EPISODE, EPSILONS, null);
-        List<MapResult> maps = new ArrayList<>();
+        List<MapResult<PolicyResult>> maps = new ArrayList<>();
         for (String mapPath : mapPaths) {
             maps.add(runOnMap(mapPath, meta));
         }
@@ -86,31 +80,10 @@ public final class PolicyComparison {
     }
 
     /**
-     * 扫描 map/ 下纯数字编号且含 map.csv 的子目录，按编号升序返回地图相对路径。
-     */
-    private static List<String> discoverMaps() throws IOException {
-        Map<Integer, String> mapsByNumber = new TreeMap<>();
-        try (var entries = Files.list(MAP_ROOT)) {
-            entries.filter(Files::isDirectory)
-                    .map(path -> path.getFileName().toString())
-                    .filter(name -> name.chars().allMatch(Character::isDigit))
-                    .filter(name -> Files.exists(MAP_ROOT.resolve(name).resolve("map.csv")))
-                    .forEach(name -> mapsByNumber.put(Integer.parseInt(name), name));
-        }
-        if (mapsByNumber.isEmpty()) {
-            throw new IllegalStateException(
-                    "map/ 下未发现任何地图（应先运行 python scripts/generate_maps.py）");
-        }
-        return mapsByNumber.values().stream()
-                .map(name -> MAP_ROOT.resolve(name).resolve("map.csv").toString())
-                .toList();
-    }
-
-    /**
      * 在单张地图上跑全部策略配置：random 在前，其后按 ε 自小到大，
      * 每种配置独立完成「训练 + 贪婪评估」的全部重复。
      */
-    private static MapResult runOnMap(String mapPath, ExperimentMeta meta) {
+    private static MapResult<PolicyResult> runOnMap(String mapPath, ExperimentMeta meta) {
         World world = new World(mapPath);
         System.out.println("[" + mapPath + "]");
         List<PolicyResult> policies = new ArrayList<>();
@@ -118,7 +91,7 @@ public final class PolicyComparison {
         for (double epsilon : meta.epsilons()) {
             policies.add(runPolicy(world, PolicyResult.EPS_GREEDY, epsilon, meta));
         }
-        return new MapResult(mapPath, world.getWidth(), world.getHeight(),
+        return new MapResult<>(mapPath, world.getWidth(), world.getHeight(),
                 world.getInitialMapInCsvRowOrder(), policies);
     }
 
@@ -133,9 +106,10 @@ public final class PolicyComparison {
         for (int rep = 1; rep <= meta.repetitions(); rep++) {
             MonteCarlo monteCarlo = buildMonteCarlo(world, epsilon, meta.episodes());
             monteCarlo.buildQValuesAndSValues();
-            World evalWorld = runGreedyEpisode(world, monteCarlo.getQValues(), meta.maxStepsPerEpisode());
-            repRewards.add(evalWorld.getTotalReward());
-            if (evalWorld.isTerminated()) {
+            GreedyOutcome outcome = GreedyEvaluator.evaluate(
+                    world, monteCarlo.getQValues(), meta.maxStepsPerEpisode());
+            repRewards.add(outcome.totalReward());
+            if (outcome.terminated()) {
                 terminatedCount++;
             }
         }
@@ -170,28 +144,6 @@ public final class PolicyComparison {
         EpsilonGreedyPolicy policy = new EpsilonGreedyPolicy();
         policy.setEpsilon(epsilon);
         return policy;
-    }
-
-    /**
-     * 用训练好的 Q 表做一次全程贪婪走图（intention-7 的单次奖励 rri/rei-ε）：
-     * ε=0 的 ε-贪婪策略即纯贪婪（random.nextDouble() &lt; 0 恒不成立），
-     * 从干净起点出发走到终点或步数上限，返回走完的世界（取总奖励与是否抵达终点）。
-     */
-    private static World runGreedyEpisode(World world, Map<StateActionPair, Double> qValues,
-                                          int maxSteps) {
-        World evalWorld = new World(world);
-        // 从起点干净开始，与训练回合的环境口径一致
-        evalWorld.reset();
-        EpsilonGreedyPolicy greedyPolicy = new EpsilonGreedyPolicy();
-        greedyPolicy.setEpsilon(0.0);
-        greedyPolicy.setQValues(qValues);
-        greedyPolicy.setWorld(evalWorld);
-
-        int steps = 0;
-        while (!evalWorld.isTerminated() && steps++ < maxSteps) {
-            evalWorld.move(greedyPolicy.determineAction());
-        }
-        return evalWorld;
     }
 
     /** 控制台进度用的策略描述：random 或 eps=0.1（ASCII，避免终端编码问题） */

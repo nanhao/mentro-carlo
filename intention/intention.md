@@ -72,3 +72,6 @@
 
 # intention-15
 本次任务要实现一个新的脚本，功能是 q-learning 的回放 ui，参考 的实现。sarsa 的实现。q-learning 的trace 数据已在上一个 intention 准备好了，不需要写测试。如果可以复用同一个脚本和界面的话就直接复用也行。
+
+# intention-16
+本次任务是要实现一个新的脚本，用于对比 montecarlo、sarsa、q-learning 在 epsilone = 1的情况下，对10张地图分别进行 1000 个 episode，然后贪婪走一遍。重复50次算出平均奖励。参照之前 montecarlo 不同的探索率的对比实验。不过这次是对比 montecarlo、sarsa和 q-learning。不需要写测试。

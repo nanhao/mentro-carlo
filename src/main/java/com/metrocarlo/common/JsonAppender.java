@@ -79,6 +79,18 @@ public final class JsonAppender {
         sb.append("],").append(LF);
     }
 
+    /** 一维字符串数组字段：单行书写、元素以 ", " 分隔、逐元素 JSON 转义（如算法标识序列） */
+    public static void appendStringArrayField(StringBuilder sb, int depth, String name, String[] values) {
+        sb.append(indent(depth)).append('"').append(name).append("\": [");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            appendQuoted(sb, values[i]);
+        }
+        sb.append("],").append(LF);
+    }
+
     /**
      * 二维整型网格字段（如按 CSV 行序排列的初始地图）：内层每个数组一行、
      * 元素以 ", " 分隔；末行不带逗号。

@@ -51,7 +51,7 @@ public final class CompareResultWriter {
      * @param maps 各地图结果，顺序与实验运行顺序一致
      * @return 写入的 results.json 完整路径
      */
-    public static Path write(ExperimentMeta meta, List<MapResult> maps) throws IOException {
+    public static Path write(ExperimentMeta meta, List<MapResult<PolicyResult>> maps) throws IOException {
         Path runDirectory = createRunDirectory();
         Path resultFile = runDirectory.resolve(RESULT_FILE_NAME);
         String exportedAt = LocalDateTime.now().format(EXPORTED_AT);
@@ -73,7 +73,7 @@ public final class CompareResultWriter {
     }
 
     /** 把整份结果序列化为 JSON 字符串（以换行结尾）；exportedAt 由写盘入口补充 */
-    static String toJson(ExperimentMeta meta, List<MapResult> maps, String exportedAt) {
+    static String toJson(ExperimentMeta meta, List<MapResult<PolicyResult>> maps, String exportedAt) {
         StringBuilder sb = new StringBuilder();
         sb.append("{").append(LF);
         appendMeta(sb, meta, exportedAt);
@@ -98,7 +98,7 @@ public final class CompareResultWriter {
     }
 
     /** maps 数组：每元素一张地图 */
-    private static void appendMaps(StringBuilder sb, List<MapResult> maps) {
+    private static void appendMaps(StringBuilder sb, List<MapResult<PolicyResult>> maps) {
         sb.append(INDENT).append("\"maps\": [").append(LF);
         for (int i = 0; i < maps.size(); i++) {
             appendMap(sb, maps.get(i));
@@ -108,13 +108,13 @@ public final class CompareResultWriter {
     }
 
     /** 单张地图对象：mapPath 起、policies 止（policies 为最后字段，天然无尾随逗号） */
-    private static void appendMap(StringBuilder sb, MapResult map) {
+    private static void appendMap(StringBuilder sb, MapResult<PolicyResult> map) {
         sb.append(INDENT).append(INDENT).append("{").append(LF);
         appendStringField(sb, 3, "mapPath", map.mapPath());
         appendIntField(sb, 3, "width", map.width());
         appendIntField(sb, 3, "height", map.height());
         appendIntMatrixField(sb, 3, "initialMap", map.initialMap());
-        appendPolicies(sb, map.policies());
+        appendPolicies(sb, map.entries());
         sb.append(INDENT).append(INDENT).append("}");
     }
 

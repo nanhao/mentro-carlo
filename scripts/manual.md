@@ -1,6 +1,6 @@
 # 地图脚本使用手册
 
-`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」「sarsa_viewer.py」与「qlearning_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
+`scripts/` 目录下的 Python 脚本承担四类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」「sarsa_viewer.py」与「qlearning_viewer.py」章节）、**策略对比实验可视化**（见文末「compare_policies.py」章节）与**算法对比实验可视化**（见文末「compare_algorithms.py」章节）。
 
 目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（回放引擎、地图画布、主窗口按算法成组：蒙特卡洛 `trace_replay.py` / `map_canvas.py` / `viewer_app.py`；Sarsa 与 Q-learning 以 `sarsa_*` / `qlearning_*` 前缀继承上一算法组），不直接运行。
 
@@ -227,4 +227,40 @@ python scripts/compare_policies.py --results data/compare/run-<时间戳>/result
 ## 常见问题
 
 - **未找到 results.json**：先运行第一步的 Java 端实验；确认目录结构为 `data/compare/run-<时间戳>/results.json`
+- **图中中文显示为方块**：本机缺少微软雅黑/黑体字体时的显示问题，不影响数据本身
+
+---
+
+# compare_algorithms.py · 算法对比实验可视化
+
+`compare_algorithms.py`（matplotlib，依赖 `pip install matplotlib`）读取 Java 端 `AlgorithmComparison` 导出的实验结果 `data/algorithm-compare/run-<时间戳>/results.json`，对每张地图比较 MonteCarlo / Sarsa / Q-learning 三种算法在 **ε=1**（行为策略全程随机探索，三种算法训练回合行为分布一致）下的学习效果：每种算法重复 50 次「从零训练 1000 episode → 用学到的 Q 表全程贪婪走一遍」，记录贪婪回合总奖励的均值/标准差。
+
+## 第一步：运行 Java 端实验（产出数据）
+
+```powershell
+mvn compile exec:java -Dexec.mainClass=com.metrocarlo.experiment.AlgorithmComparison
+```
+
+可选参数 `--episodes N`、`--repetitions N` 可缩小规模冒烟（如 `"--episodes" "100" "--repetitions" "2"`）。默认全量运行（10 图 × 3 算法 × 50 次 × 1000 episode）。结果写入新目录 `data/algorithm-compare/run-<时间戳>/results.json`（运行产物，已被 .gitignore 排除），不覆盖旧运行。
+
+## 第二步：出图
+
+```powershell
+python scripts/compare_algorithms.py                                   # 自动取 data/algorithm-compare 下最新一次运行
+python scripts/compare_algorithms.py --results data/algorithm-compare/run-<时间戳>/results.json
+```
+
+图表输出到 results.json 所在的 run 目录：
+
+| 文件 | 内容 |
+|---|---|
+| `compare_per_map.png` | 每张地图一个子图：x 轴为三种算法（蒙特卡洛 / Sarsa / Q-learning，按算法着色），y 轴为贪婪回合总奖励；误差棒 = 50 次重复的均值 ± 标准差，同色半透明散点 = 每次重复的原始奖励 |
+| `compare_summary.png` | 全部地图的汇总对比：每张地图每个算法一条细线，各算法全地图平均加粗着色 |
+
+控制台同时打印每张地图按平均贪婪奖励排序的最优算法（含抵达终点次数，低于重复次数说明学到的贪婪策略会成环）与全地图平均。
+
+## 常见问题
+
+- **未找到 results.json**：先运行第一步的 Java 端实验；确认目录结构为 `data/algorithm-compare/run-<时间戳>/results.json`
+- **误用 compare_policies.py 读本实验数据**：本实验 schema（meta.algorithms + maps[].algorithms）与策略对比实验（meta.epsilons + maps[].policies）不同且目录独立——`compare_policies.py` 自动扫描的是 `data/compare`，本脚本扫描的是 `data/algorithm-compare`，请按实验选对脚本
 - **图中中文显示为方块**：本机缺少微软雅黑/黑体字体时的显示问题，不影响数据本身
