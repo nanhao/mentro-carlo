@@ -14,7 +14,7 @@ from typing import Optional
 
 from domain.trace_replay import Episode, StepResult, TraceReplay
 from domain.viewer_app import ViewerApp
-from domain.sarsa_trace_replay import SarsaTraceReplay
+from domain.sarsa_trace_replay import SarsaTraceReplay, SarsaVisit
 from domain.sarsa_map_canvas import SarsaMapCanvas
 
 
@@ -25,6 +25,12 @@ class SarsaViewerApp(ViewerApp):
     PROCESS_HINT: str = "在线更新：每执行一步立即更新该 (s,a) 的 Q（正序 = 执行顺序）："
     FORMULA: str = ("① TD 目标 = r + γ·Q(s′,a′)     ② δ = TD 目标 − Q(s,a)     "
                     "③ Q(s,a) ← Q(s,a) + α·δ")
+
+    # ---- 展示名与过程表列头（子类覆盖以适配同形算法：qlearning 改公式与 na/nq 两列措辞）----
+    ALGO_NAME: str = "Sarsa"
+    TREE_HEADERS: dict = {"no": "步", "state": "状态 (x,y)", "act": "a", "r": "r",
+                          "dest": "到达 s′", "na": "a′", "nq": "Q(s′,a′)",
+                          "target": "TD 目标", "delta": "δ", "q": "Q(s,a)：前 → 后"}
 
     # ================= 界面构建（sarsa 差异覆盖） =================
 
@@ -127,13 +133,10 @@ class SarsaViewerApp(ViewerApp):
         """10 列过程表，列 ↔ 字段映射见 design/12 §六.5（正序 = 执行顺序）。"""
         columns: tuple = ("no", "state", "act", "r", "dest", "na", "nq", "target", "delta", "q")
         tree: ttk.Treeview = ttk.Treeview(parent, columns=columns, show="headings", style="Viewer.Treeview")
-        headers: dict = {"no": "步", "state": "状态 (x,y)", "act": "a", "r": "r", "dest": "到达 s′",
-                         "na": "a′", "nq": "Q(s′,a′)", "target": "TD 目标", "delta": "δ",
-                         "q": "Q(s,a)：前 → 后"}
         widths: dict = {"no": 40, "state": 86, "act": 36, "r": 40, "dest": 86, "na": 36,
                         "nq": 68, "target": 68, "delta": 62, "q": 150}
         for col in columns:
-            tree.heading(col, text=headers[col])
+            tree.heading(col, text=self.TREE_HEADERS[col])
             tree.column(col, width=widths[col], anchor="e", stretch=False)
         ybar: ttk.Scrollbar = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=ybar.set)
@@ -143,10 +146,14 @@ class SarsaViewerApp(ViewerApp):
 
     # ================= trace 加载与切换 =================
 
+    def _new_replay(self, path: Path) -> TraceReplay:
+        """构造本算法 trace 的回放引擎（加载校验 algorithm == ALGORITHM；子类覆盖以扩展）。"""
+        return SarsaTraceReplay(path)
+
     def _load_trace(self, path: Path) -> None:
         """加载 trace.json（校验 algorithm == sarsa）：重建回放/画布并全量同步；失败时保持旧状态。"""
         try:
-            replay: SarsaTraceReplay = SarsaTraceReplay(path)
+            replay: TraceReplay = self._new_replay(path)
         except Exception as exc:
             messagebox.showerror("trace 加载失败", f"{path}\n{exc}")
             return
@@ -158,8 +165,8 @@ class SarsaViewerApp(ViewerApp):
         self._map_canvas = SarsaMapCanvas(self._canvas_box, replay)
         self._map_canvas.pack()
         self._map_id: str = self._find_map_id(path)
-        self._title_lbl.config(text=f"Sarsa 回放可视化 · {self._map_id}")
-        self._root.title(f"Sarsa TD 控制过程可视化 · {self._map_id} · {path.parent.name}")
+        self._title_lbl.config(text=f"{self.ALGO_NAME} 回放可视化 · {self._map_id}")
+        self._root.title(f"{self.ALGO_NAME} TD 控制过程可视化 · {self._map_id} · {path.parent.name}")
         self._map_cb.set(self._map_id if self._map_id in self._maps else "")
         # 参数胶囊取自 trace meta（α 为初始学习率；行内实际 α 见过程面板与详情卡）
         meta: dict = {"α": replay.alpha, "γ": replay.gamma, "ε": replay.epsilon}
@@ -223,6 +230,15 @@ class SarsaViewerApp(ViewerApp):
                 f"{v.td.next_q:.2f}", f"{v.td.td_target:.2f}", f"{v.td.delta:.2f}",
                 f"{v.q_old:.2f} → {v.q_new:.2f}"))
 
+    def _bootstrap_line(self, visit: SarsaVisit) -> str:
+        """详情卡「自举动作」行文本（design/12 §六.5；终点行如实记录但显示 —；
+        子类覆盖为 off-policy 措辞，见 qlearning_viewer_app）。"""
+        if visit.to_type == SarsaTraceReplay.TYPE_TERMINAL:
+            na_text: str = "—（已进入终点，Q(s′,·) 恒为 0）"
+        else:
+            na_text = f"{self.ACTION_ARROW[visit.td.next_action]}（自举项）"
+        return f"下一动作 a′ {na_text} · Q(s′,a′) = {visit.td.next_q:.2f}"
+
     def _fill_action_detail(self, result: Optional[StepResult]) -> None:
         """重建详情卡：无动作时提示；有则展示步号/起终点/奖励/TD 明细/动作说明。"""
         box: tk.Frame = self._act_box
@@ -243,12 +259,8 @@ class SarsaViewerApp(ViewerApp):
         color: str = self.REWARD_POS if v.reward > 0 else (self.REWARD_NEG if v.reward < 0 else self.TEXT_FG)
         tk.Label(box, text=f"即时奖励 {sign_r}{v.reward} · 累计奖励 {sign_t}{v.total_reward}",
                  font=self.F_UI, bg=self.CARD_BG, fg=color).pack(anchor="w", pady=(0, 4))
-        # ---- TD 明细两行（design/12 §六.5；a′ 显示规则：终点行如实记录但显示 —）----
-        if v.to_type == SarsaTraceReplay.TYPE_TERMINAL:
-            na_text: str = "—（已进入终点，Q(s′,·) 恒为 0）"
-        else:
-            na_text = f"{self.ACTION_ARROW[v.td.next_action]}（自举项）"
-        tk.Label(box, text=f"下一动作 a′ {na_text} · Q(s′,a′) = {v.td.next_q:.2f}",
+        # ---- TD 明细两行（design/12 §六.5；自举动作行措辞见 _bootstrap_line，子类按算法覆盖）----
+        tk.Label(box, text=self._bootstrap_line(v),
                  font=self.F_MONO, bg=self.CARD_BG, fg=self.TEXT_FG).pack(anchor="w")
         tk.Label(box, text=(f"TD 目标 {v.td.td_target:.2f} · δ = {SarsaMapCanvas.fmt_value(v.td.delta)}"
                             f" · Q(s,a)： {v.q_old:.2f} → {v.q_new:.2f}"),

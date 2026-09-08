@@ -1,8 +1,8 @@
 # 地图脚本使用手册
 
-`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」与「sarsa_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
+`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」「sarsa_viewer.py」与「qlearning_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
 
-目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（`trace_replay.py` / `sarsa_trace_replay.py` 回放引擎、`map_canvas.py` / `sarsa_map_canvas.py` 地图画布、`viewer_app.py` / `sarsa_viewer_app.py` 主窗口），不直接运行。
+目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（回放引擎、地图画布、主窗口按算法成组：蒙特卡洛 `trace_replay.py` / `map_canvas.py` / `viewer_app.py`；Sarsa 与 Q-learning 以 `sarsa_*` / `qlearning_*` 前缀继承上一算法组），不直接运行。
 
 ```
 map/1/map.csv  ~ map/10/map.csv   # 地图源文件（Java World 直接加载）
@@ -117,7 +117,7 @@ python scripts/montecarlo_viewer.py --trace data/trace/map-2/run-20260901-120000
 - **窗口空白无地图**：`data/trace` 下尚无任何 trace，先运行 Java 端采集；确认目录结构为 `data/trace/map-N/run-<时间戳>/trace.json`
 - **控制台中文乱码**：PowerShell 默认代码页显示问题，仅影响终端打印，不影响 GUI 中文显示
 - **启动报错 `No module named 'domain'`**：业务模块位于 `scripts/domain/` 子目录，请始终用 `python scripts/montecarlo_viewer.py` 方式启动（脚本所在 scripts 目录会自动加入模块搜索路径）；不要直接运行 `scripts/domain/` 下的模块
-- **加载 sarsa 的 trace**：sarsa trace 位于 `data/trace/sarsa/`，请使用下节的 `sarsa_viewer.py` 查看
+- **加载 sarsa / qlearning 的 trace**：算法 trace 与查看器一一对应——sarsa trace（`data/trace/sarsa/`）请用下节 `sarsa_viewer.py`；qlearning trace（`data/trace/qlearning/`）请用「qlearning_viewer.py」章节的 `qlearning_viewer.py`
 
 ---
 
@@ -138,7 +138,7 @@ python scripts/sarsa_viewer.py --map 1
 python scripts/sarsa_viewer.py --trace data/trace/sarsa/map-1/run-20260908-153618/trace.json
 ```
 
-加载时校验 `meta.algorithm == "sarsa"`（design/12 §六.1 加载分发）：误选 montecarlo trace 会弹窗提示改用 `montecarlo_viewer.py`。
+加载时校验 `meta.algorithm == "sarsa"`（design/12 §六.1 加载分发）：误选其它算法的 trace 会弹窗提示换用对应查看器（montecarlo → `montecarlo_viewer.py`、qlearning → `qlearning_viewer.py`）。
 
 ## 界面与操作
 
@@ -154,7 +154,44 @@ python scripts/sarsa_viewer.py --trace data/trace/sarsa/map-1/run-20260908-15361
 ## 常见问题
 
 - **窗口空白无地图**：`data/trace/sarsa` 下尚无任何 trace，先运行 Java 端 `mvn compile exec:java -Dexec.mainClass=com.metrocarlo.Main`（`runSarsaOnOneMap`）采集；确认目录结构为 `data/trace/sarsa/map-N/run-<时间戳>/trace.json`
-- **弹窗「算法为 montecarlo（非 sarsa）」**：--trace 或「浏览…」选到了 MC trace，两者目录与 viewer 互不影响，请改用 `montecarlo_viewer.py`
+- **弹窗「算法为 …（非 sarsa）」**：--trace 或「浏览…」选到了其它算法的 trace（弹窗会引导至对应 viewer：montecarlo → `montecarlo_viewer.py`、qlearning → `qlearning_viewer.py`），两者目录与 viewer 互不影响
+- **控制台中文乱码 / `No module named 'domain'`**：同 montecarlo_viewer 章节说明
+
+---
+
+# qlearning_viewer.py · Q-learning trace 回放可视化查看器
+
+`qlearning_viewer.py`（tkinter 图形界面，仅依赖 Python 标准库）把一次 Q-learning 运行的 `trace.json` 按 design/14 README §3.3 逐步回放（GUI 回放契约沿用 design/12 §六）。Q-learning 与 Sarsa 同为在线 TD 更新（走一步更新一次、无回合末结算），且 trace 行结构与 sarsa 逐字段同形，因此引擎与界面几乎全部复用 sarsa 版：`QLearningTraceReplay` 继承 `SarsaTraceReplay`（仅覆盖算法标识）、`QLearningViewerApp` 继承 `SarsaViewerApp`、地图画布直接复用 `SarsaMapCanvas`，仅按 off-policy 语义改展示措辞。trace 由 Java 端采集产出（`data/trace/qlearning/map-N/run-*/trace.json`，design/14 §二；已被 .gitignore 排除，需先运行 Java 端 `Main.runQLearningOnOneMap` 生成）。
+
+## 启动
+
+```powershell
+# 自动发现 data/trace/qlearning 下各 map-N 的最新一次运行
+python scripts/qlearning_viewer.py
+
+# 初始加载指定地图的最新运行（同 --map map-1）
+python scripts/qlearning_viewer.py --map 1
+
+# 直接加载任意 trace.json（优先于 --map）
+python scripts/qlearning_viewer.py --trace data/trace/qlearning/map-1/run-20260908-182623/trace.json
+```
+
+加载时校验 `meta.algorithm == "qlearning"`（design/12 §六.1 加载分发）：误选其它算法的 trace 会弹窗提示换用对应查看器（montecarlo → `montecarlo_viewer.py`、sarsa → `sarsa_viewer.py`）。
+
+## 界面与操作
+
+工具栏五按钮、徽章组、左列地图卡与右列信息卡的布局与 `sarsa_viewer.py` 一致（其「界面与操作」章节通用），qlearning 专属差异（off-policy 自举，design/14 §一）：
+
+- **公式条与过程面板说明**：① TD 目标 = r + γ·max_a′ Q(s′,a′)——a* = argmax_a′ Q(s′,a′)，与行为动作解耦；过程表第 3 列的 a（行为动作）仅用于移动，不参与本步更新
+- **过程表两列头**：自举两列 a′ / Q(s′,a′) 改为 **a\* / Q(s′,a\*)**（即 trace 的 `td.nextAction` / `td.nextQ` 字段，后者 = max_a′ Q(s′,a′)）
+- **最近一个 action 详情**：自举动作行措辞为「自举动作 a\*：↑（argmax）· max Q(s′,·) = …」，终点行显示 —（Q(s′,·) 恒为 0）
+- **on-policy 链不适用**：a* 是 s′ 上的 argmax 动作，与下一步实际执行的动作无必然关系（design/14 §六.6），本 viewer 不做该关联展示
+- 中心 V̂(s) = max_a Q(s,a) 派生徽章（虚线 ≈）、贪婪动作描边、α 衰减胶囊等与 sarsa 版完全一致
+
+## 常见问题
+
+- **窗口空白无地图**：`data/trace/qlearning` 下尚无任何 trace，先运行 Java 端 `mvn compile exec:java`（Main 默认入口即 `runQLearningOnOneMap`）采集；确认目录结构为 `data/trace/qlearning/map-N/run-<时间戳>/trace.json`
+- **弹窗「算法为 …（非 qlearning）」**：--trace 或「浏览…」选到了其它算法的 trace，请按弹窗提示换用对应 viewer（sarsa / montecarlo 目录与 viewer 互不影响）
 - **控制台中文乱码 / `No module named 'domain'`**：同 montecarlo_viewer 章节说明
 
 ---

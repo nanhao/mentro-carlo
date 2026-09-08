@@ -20,6 +20,14 @@ from typing import Optional, Tuple
 
 from domain.trace_replay import Episode, StepResult, TraceReplay
 
+# 算法标识 → 建议使用的 viewer 入口（design/12 §六.1 加载分发的引导文案；取值域随
+# meta.algorithm 扩展，sarsa / qlearning 行结构同形，加载校验由各类的 ALGORITHM 常量分发）
+VIEWER_BY_ALGORITHM: dict = {
+    "montecarlo": "montecarlo_viewer.py",
+    "sarsa": "sarsa_viewer.py",
+    "qlearning": "qlearning_viewer.py",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class TdDetail:
@@ -80,11 +88,17 @@ class SarsaTraceReplay(TraceReplay):
     继承复用：TYPE_*/ACTION_* 常量、只读状态属性、cell_type/q_value、start_next_episode /
     reset / has_more 等全部与 MC 一致（reset 建立的 _s 表对 sarsa 恒为空，无害）；
     Episode / StepResult 数据语义两种算法下完全一致，直接复用（StepResult.visit 实际为 SarsaVisit）。
+
+    行结构与 sarsa 逐字段同形的 TD 算法（如 qlearning，design/14 §3.3）可继承本类并仅覆盖
+    ALGORITHM 常量：加载校验、回放语义与派生量全部自动适配（见 domain/qlearning_trace_replay.py）。
     """
 
     # ---- 动作遍历顺序（与 Constants.DIRECTION_* 0↑ 1→ 2↓ 3← 对应；V̂ 取 max 与顺序无关）----
     ACTIONS: tuple = (TraceReplay.ACTION_UP, TraceReplay.ACTION_RIGHT,
                       TraceReplay.ACTION_DOWN, TraceReplay.ACTION_LEFT)
+
+    # ---- 本引擎支持的算法标识（design/12 §六.1 加载分发；同形算法的子类仅需覆盖本常量）----
+    ALGORITHM: str = "sarsa"
 
     def __init__(self, trace_path: Path) -> None:
         """加载 trace.json：meta 原样归档 + 算法校验，initialMap 由 CSV 行序转 world 序（map[y][x]）。"""
@@ -94,10 +108,12 @@ class SarsaTraceReplay(TraceReplay):
         meta: dict = raw["meta"]
         self.version: int = meta["version"]
         self.algorithm: str = meta.get("algorithm", "montecarlo")
-        if self.algorithm != "sarsa":
-            # design/12 §六.1 加载分发：非 sarsa trace 互不影响，引导至 MC viewer
+        if self.algorithm != self.ALGORITHM:
+            # design/12 §六.1 加载分发：非本算法 trace 互不影响，引导至对应算法的 viewer
+            viewer: str = VIEWER_BY_ALGORITHM.get(self.algorithm, "对应算法的 viewer")
             raise ValueError(
-                f"该 trace 的算法为 {self.algorithm!r}（非 sarsa），请用 montecarlo_viewer.py 查看: {trace_path}")
+                f"该 trace 的算法为 {self.algorithm!r}（非 {self.ALGORITHM}），"
+                f"请换用 {viewer} 查看: {trace_path}")
         self.map_path: str = meta["mapPath"]
         self.width: int = meta["width"]
         self.height: int = meta["height"]

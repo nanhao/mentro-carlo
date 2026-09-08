@@ -69,3 +69,6 @@
 
 # intention-14
 本次任务是要实现 q-learning， q-learning 和 sarsa 极其相似，实现上的唯一区别是更新是取下一状态的贪婪 q 而不是实际动作 q。
+
+# intention-15
+本次任务要实现一个新的脚本，功能是 q-learning 的回放 ui，参考 的实现。sarsa 的实现。q-learning 的trace 数据已在上一个 intention 准备好了，不需要写测试。如果可以复用同一个脚本和界面的话就直接复用也行。
