@@ -11,7 +11,8 @@ import lombok.Data;
  * <p>
  * 行语义与行序按算法区分（见 {@link EpisodeTrace} 说明）：
  * montecarlo 行 = 回合结束后结算循环中的一次处理（先算 G 随即更新 S/Q，行序倒序）；
- * sarsa 行 = 一步在线 TD 更新（行内 td 携带明细，行序正序）。
+ * sarsa / qlearning 行 = 一步在线 TD 更新（行内 td 携带明细，行序正序；
+ * td 字段语义按 algorithm 区分，见 {@link TdUpdateRecord} 与 design/14/README.md §3.3）。
  * 两种行共用公共 12 字段与 qOld/qNew；算法专属字段互不设置、JSON 互不输出。
  */
 @Data
@@ -80,8 +81,8 @@ public class VisitRecord {
     private double sNew;
     /** 该 (状态, 动作) 的 qValue 更新前取值 */
     private double qOld;
-    /** 该 (状态, 动作) 的 qValue 更新后取值（montecarlo：qOld + alpha*(G - qOld)；sarsa：qOld + td.alpha*td.delta） */
+    /** 该 (状态, 动作) 的 qValue 更新后取值（montecarlo：qOld + alpha*(G - qOld)；sarsa / qlearning：qOld + td.alpha*td.delta） */
     private double qNew;
-    /** sarsa 行的本步 TD 更新明细（design/12 §3.3）；montecarlo 行为 null 且 JSON 不输出 */
+    /** TD 算法行（sarsa / qlearning）的本步 TD 更新明细（design/12 §3.3、design/14 §3.3）；montecarlo 行为 null 且 JSON 不输出 */
     private TdUpdateRecord td;
 }

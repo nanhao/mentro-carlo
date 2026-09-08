@@ -10,11 +10,11 @@ import com.metrocarlo.world.World;
 /**
  * trace 容器工厂：构建带 meta 头的空 trace（episodes 由各算法采集时填充）。
  * <p>
- * meta 中地图与算法上下文字段取自运行参数，MonteCarlo 与 Sarsa 共用本工厂避免重复构建
- * （design/12/README.md §四）；mapPath / seed / exportedAt 属导出上下文，
+ * meta 中地图与算法上下文字段取自运行参数，MonteCarlo / Sarsa / QLearning 共用本工厂避免重复构建
+ * （design/12/README.md §四；qlearning 见 design/14/README.md §四）；mapPath / seed / exportedAt 属导出上下文，
  * 由导出入口 {@code TraceFileWriter} 补充。
  * <p>
- * 置于 montecarlo 包：唯一消费方 MonteCarlo / Sarsa 均在本包，
+ * 置于 montecarlo 包：消费方 MonteCarlo / Sarsa / QLearning 均在本包，
  * 避免放入 history 包引入 history→agent 反向依赖（agent→world→history 已成链）。
  */
 public final class TraceFactory {

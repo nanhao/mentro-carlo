@@ -7,13 +7,14 @@ import com.metrocarlo.agent.EpsilonGreedyPolicy;
 import com.metrocarlo.agent.Policy;
 import com.metrocarlo.history.TraceFileWriter;
 import com.metrocarlo.montecarlo.MonteCarlo;
+import com.metrocarlo.montecarlo.QLearning;
 import com.metrocarlo.montecarlo.Sarsa;
 import com.metrocarlo.world.World;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        // 约定：先运行 map/1/map.csv，trace 导出到 data/trace 目录（intention-2；sarsa 见 intention-12）
-        runSarsaOnOneMap("map/1/map.csv");
+        // 约定：先运行 map/1/map.csv，trace 导出到 data/trace 目录（intention-2；sarsa 见 intention-12；qlearning 见 intention-14）
+        runQLearningOnOneMap("map/1/map.csv");
     }
 
     /**
@@ -49,5 +50,22 @@ public class Main {
 
         Path output = TraceFileWriter.write(sarsa.getTrace(), mapPath);
         System.out.println("sarsa trace 已导出: " + output.toAbsolutePath().normalize());
+    }
+
+    /**
+     * 在指定地图上执行一轮完整 Q-learning 并导出 trace：加载地图 → 构建 QLearning →
+     * 跑完全部 episode → 写入 data/trace/qlearning/map-&lt;N&gt;/run-&lt;时间戳&gt;/trace.json
+     * （目录组织见 design/14/README.md §二，格式见 §三）。
+     *
+     * @param mapPath 源地图相对路径（如 map/1/map.csv）
+     */
+    private static void runQLearningOnOneMap(String mapPath) throws IOException {
+        World world = new World(mapPath);
+        Policy policy = new EpsilonGreedyPolicy();
+        QLearning qLearning = new QLearning(world, policy);
+        qLearning.buildQValues();
+
+        Path output = TraceFileWriter.write(qLearning.getTrace(), mapPath);
+        System.out.println("qlearning trace 已导出: " + output.toAbsolutePath().normalize());
     }
 }

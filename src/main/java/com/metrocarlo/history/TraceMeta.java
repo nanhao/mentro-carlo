@@ -20,13 +20,15 @@ public class TraceMeta {
 
     /** 算法标识取值：蒙特卡洛（默认；v1 旧文件无 algorithm 字段亦视为 montecarlo） */
     public static final String ALGORITHM_MONTECARLO = "montecarlo";
-    /** 算法标识取值：Sarsa（时序差分，visits 行含 td 更新明细） */
+    /** 算法标识取值：Sarsa（on-policy 时序差分，visits 行含 td 更新明细） */
     public static final String ALGORITHM_SARSA = "sarsa";
+    /** 算法标识取值：Q-learning（off-policy 时序差分，visits 行含 td 更新明细，td 字段语义按算法区分见 design/14 §3.3） */
+    public static final String ALGORITHM_QLEARNING = "qlearning";
 
     /** 格式版本号（schema 演进时递增，旧文件据此识别） */
     @Builder.Default
     private int version = VERSION;
-    /** 采集算法标识：montecarlo | sarsa（GUI 加载任意 trace 时据此分发回放引擎） */
+    /** 采集算法标识：montecarlo | sarsa | qlearning（GUI 加载任意 trace 时据此分发回放引擎） */
     @Builder.Default
     private String algorithm = ALGORITHM_MONTECARLO;
     /** 源地图相对路径，如 map/1/map.csv（导出入口补充） */

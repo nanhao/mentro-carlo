@@ -66,3 +66,6 @@
 
 # intention-13
 本次任务要实现一个新的脚本，功能是 sarsa 的回放 ui，参考 montecarlo 的实现。sarsa 的trace 数据已在上一个 intention 准备好了，不需要写测试。
+
+# intention-14
+本次任务是要实现 q-learning， q-learning 和 sarsa 极其相似，实现上的唯一区别是更新是取下一状态的贪婪 q 而不是实际动作 q。
