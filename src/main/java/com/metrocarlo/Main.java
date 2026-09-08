@@ -8,7 +8,7 @@ import com.metrocarlo.agent.Policy;
 import com.metrocarlo.agent.RandomPolicy;
 import com.metrocarlo.montecarlo.MonteCarlo;
 import com.metrocarlo.world.World;
-import com.metrocarlo.world.history.TraceFileWriter;
+import com.metrocarlo.history.TraceFileWriter;
 
 public class Main {
     public static void main(String[] args) throws IOException {

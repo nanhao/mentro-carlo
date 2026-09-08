@@ -1,7 +1,7 @@
 package com.metrocarlo.world;
 
 import com.metrocarlo.common.Constants;
-import com.metrocarlo.world.history.ActionRecord;
+import com.metrocarlo.history.ActionRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -97,7 +97,7 @@ class WorldTest {
         assertNull(world.getNeighborCell(world.getCell(0, 0), Constants.DIRECTION_LEFT));
     }
 
-    /** 从起点向右移动到空格：agent 移动到 (1,0)，奖励 0，历史记录一条 */
+    /** 从起点向右移动到空格：agent 移动到 (1,0)，单步奖励 = 每步惩罚 -1，历史记录一条 */
     @Test
     void moveToEmptyShouldUpdatePositionAndRecordHistory() throws IOException {
         Path csv = writeCsv(String.join("\n",
@@ -115,7 +115,7 @@ class WorldTest {
         assertEquals(Constants.CELL_TYPE_EMPTY, next.getType());
         assertEquals(1, world.getCurrentCell().getX(), "agent 位置应更新到 (1,0)");
         assertEquals(0, world.getCurrentCell().getY());
-        assertEquals(0, world.getTotalReward(), "进入空格奖励应为 0");
+        assertEquals(Constants.STEP_PUNISH, world.getTotalReward(), "进入空格应为每步惩罚 -1");
         assertEquals(1, world.getHistory().size(), "move 应记录一条历史");
     }
 
@@ -142,11 +142,11 @@ class WorldTest {
         assertEquals(1, world.getCurrentCell().getX());
         assertEquals(0, world.getCurrentCell().getY(), "DOWN 应使 y-1");
 
-        assertEquals(0, world.getTotalReward(), "全程空格，累计奖励应为 0");
+        assertEquals(3 * Constants.STEP_PUNISH, world.getTotalReward(), "全程空格，累计奖励应为 3 步惩罚");
         assertEquals(3, world.getHistory().size());
     }
 
-    /** 移动进入墙体：agent 留在原地，奖励 -1，墙不被消耗 */
+    /** 移动进入墙体：agent 留在原地，单步奖励 = 每步惩罚 -1 + 撞墙惩罚 -1，墙不被消耗 */
     @Test
     void moveIntoWallShouldStayAndTakePenalty() throws IOException {
         Path csv = writeCsv(String.join("\n",
@@ -161,9 +161,10 @@ class WorldTest {
 
         assertEquals(0, next.getX(), "撞墙后应停留在原格");
         assertEquals(0, next.getY());
-        assertEquals(Constants.REWARD_WALL, world.getTotalReward(), "撞墙奖励应为 -1");
+        assertEquals(Constants.STEP_PUNISH + Constants.REWARD_WALL, world.getTotalReward(),
+                "撞墙单步奖励应为每步惩罚 + 撞墙惩罚");
         assertEquals(Constants.CELL_TYPE_WALL, world.getCell(1, 0).getType(), "墙不应被消耗");
-        assertEquals(Constants.REWARD_WALL, world.getHistory().get(0).getReward());
+        assertEquals(Constants.STEP_PUNISH + Constants.REWARD_WALL, world.getHistory().get(0).getReward());
     }
 
     /** 边界越界移动：视同撞墙，agent 留在原地并扣奖励 */
@@ -195,11 +196,12 @@ class WorldTest {
         assertEquals(0, world.getCurrentCell().getX());
         assertEquals(2, world.getCurrentCell().getY(), "上越界应停在 (0,2)");
 
-        assertEquals(Constants.REWARD_WALL * 4, world.getTotalReward(), "四次越界应累计 -4");
+        assertEquals(4 * (Constants.STEP_PUNISH + Constants.REWARD_WALL), world.getTotalReward(),
+                "四次越界应累计 4 × (每步惩罚 + 越界惩罚)");
         assertEquals(4, world.getHistory().size());
     }
 
-    /** 移动进入苹果：奖励 +2，苹果被消耗（格子变空） */
+    /** 移动进入苹果：单步奖励 = 每步惩罚 -1 + 苹果奖励，苹果被消耗（格子变空） */
     @Test
     void moveOntoAppleShouldRewardAndConsume() throws IOException {
         Path csv = writeCsv(String.join("\n",
@@ -214,7 +216,8 @@ class WorldTest {
 
         assertEquals(1, next.getX());
         assertEquals(0, next.getY());
-        assertEquals(Constants.REWARD_APPLE, world.getTotalReward(), "进入苹果奖励应为 +2");
+        assertEquals(Constants.STEP_PUNISH + Constants.REWARD_APPLE, world.getTotalReward(),
+                "进入苹果单步奖励应为每步惩罚 + 苹果奖励");
         assertEquals(Constants.CELL_TYPE_EMPTY, next.getType(), "返回的应是消耗后的空格");
         assertEquals(Constants.CELL_TYPE_EMPTY, world.getCell(1, 0).getType(), "地图上的苹果应被消耗");
     }
@@ -234,7 +237,8 @@ class WorldTest {
 
         assertEquals(1, next.getX());
         assertEquals(0, next.getY());
-        assertEquals(Constants.REWARD_BOMB, world.getTotalReward(), "进入炸弹奖励应为 REWARD_BOMB");
+        assertEquals(Constants.STEP_PUNISH + Constants.REWARD_BOMB, world.getTotalReward(),
+                "进入炸弹单步奖励应为每步惩罚 + 炸弹奖励");
         assertEquals(Constants.CELL_TYPE_EMPTY, next.getType(), "返回的应是消耗后的空格");
         assertEquals(Constants.CELL_TYPE_EMPTY, world.getCell(1, 0).getType(), "地图上的炸弹应被消耗");
     }
@@ -256,12 +260,12 @@ class WorldTest {
         assertEquals(0, next.getY());
         assertEquals(Constants.CELL_TYPE_TERMINAL, next.getType());
         assertTrue(world.isTerminated(), "进入终点后 isTerminated 应为 true");
-        assertEquals(0, world.getTotalReward(), "进入终点奖励应为 0");
+        assertEquals(Constants.STEP_PUNISH, world.getTotalReward(), "进入终点应为每步惩罚，无终点奖励");
 
         assertThrows(RuntimeException.class, () -> world.move(Constants.DIRECTION_UP),
                 "游戏结束后再移动应抛异常");
         assertEquals(1, world.getHistory().size(), "失败的 move 不应追加历史");
-        assertEquals(0, world.getTotalReward(), "失败的 move 不应改变累计奖励");
+        assertEquals(Constants.STEP_PUNISH, world.getTotalReward(), "失败的 move 不应改变累计奖励");
     }
 
     /** 多步移动：累计奖励与历史记录应逐步累加，历史条目携带 from/action/reward/to */
@@ -275,19 +279,20 @@ class WorldTest {
 
         World world = new World(csv.toString());
 
-        world.move(Constants.DIRECTION_UP);    // (0,0) -> (0,1)，空格 0
-        world.move(Constants.DIRECTION_RIGHT); // (0,1) -> (1,1)，苹果 +2
-        world.move(Constants.DIRECTION_LEFT);  // (1,1) -> (0,1)，空格 0
-        world.move(Constants.DIRECTION_DOWN);  // (0,1) -> (0,0)，空格 0
+        world.move(Constants.DIRECTION_UP);    // (0,0) -> (0,1)，空格：每步惩罚 -1
+        world.move(Constants.DIRECTION_RIGHT); // (0,1) -> (1,1)，苹果：每步惩罚 + 苹果奖励
+        world.move(Constants.DIRECTION_LEFT);  // (1,1) -> (0,1)，空格：每步惩罚 -1
+        world.move(Constants.DIRECTION_DOWN);  // (0,1) -> (0,0)，空格：每步惩罚 -1
 
-        assertEquals(Constants.REWARD_APPLE, world.getTotalReward(), "累计奖励应等于苹果奖励");
+        assertEquals(4 * Constants.STEP_PUNISH + Constants.REWARD_APPLE, world.getTotalReward(),
+                "累计奖励应为 4 步惩罚 + 苹果奖励");
         assertEquals(4, world.getHistory().size());
 
         ActionRecord appleStep = world.getHistory().get(1);
         assertEquals(0, appleStep.getCell().getX(), "历史应记录移动起点 (0,1)");
         assertEquals(1, appleStep.getCell().getY());
         assertEquals(Constants.DIRECTION_RIGHT, appleStep.getAction());
-        assertEquals(Constants.REWARD_APPLE, appleStep.getReward());
+        assertEquals(Constants.STEP_PUNISH + Constants.REWARD_APPLE, appleStep.getReward());
         assertEquals(1, appleStep.getNextCell().getX(), "历史应记录移动终点 (1,1)");
         assertEquals(1, appleStep.getNextCell().getY());
         assertEquals(Constants.CELL_TYPE_EMPTY, appleStep.getNextCell().getType(), "苹果应已被消耗");

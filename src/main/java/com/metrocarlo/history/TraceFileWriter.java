@@ -1,4 +1,4 @@
-package com.metrocarlo.world.history;
+package com.metrocarlo.history;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

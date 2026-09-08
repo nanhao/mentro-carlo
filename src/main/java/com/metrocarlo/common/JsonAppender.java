@@ -6,7 +6,7 @@ package com.metrocarlo.common;
  * 字段一律以「逗号 + 换行」结尾，对象最后一个字段调用 {@link #endLastField}
  * 去掉尾随逗号（JSON 禁止尾随逗号）。
  * <p>
- * 各序列化器（如 world.history.TraceJsonWriter、experiment.CompareResultWriter）
+ * 各序列化器（如 history.TraceJsonWriter、experiment.CompareResultWriter）
  * 负责各自 JSON 的结构与字段顺序，本类只提供单个字段/数组的拼接原语与最小转义。
  */
 public final class JsonAppender {

@@ -9,11 +9,11 @@ import com.metrocarlo.agent.StateActionPair;
 import com.metrocarlo.common.Constants;
 import com.metrocarlo.world.Cell;
 import com.metrocarlo.world.World;
-import com.metrocarlo.world.history.ActionRecord;
-import com.metrocarlo.world.history.EpisodeTrace;
-import com.metrocarlo.world.history.Trace;
-import com.metrocarlo.world.history.TraceMeta;
-import com.metrocarlo.world.history.VisitRecord;
+import com.metrocarlo.history.ActionRecord;
+import com.metrocarlo.history.EpisodeTrace;
+import com.metrocarlo.history.Trace;
+import com.metrocarlo.history.TraceMeta;
+import com.metrocarlo.history.VisitRecord;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -22,7 +22,7 @@ import lombok.Setter;
  * 蒙特卡洛评估与控制：对同一策略重复执行完整回合（episode），
  * 回合结束后按倒序单循环结算回报 G 并增量更新 stateValues / qValues。
  * <p>
- * 结算循环同步采集 trace 数据（结构见 world.history，格式约定见 design/3/README.md §三）：
+ * 结算循环同步采集 trace 数据（结构见 history 包，格式约定见 design/3/README.md §三）：
  * 每行 = 一次状态访问，记录 G 计算与该行 S/Q 更新前后值，供 GUI 回放与 S/Q 表重建。
  * 采集只读引用循环内既有局部量，不改动算法内容与循环顺序；
  * 批量实验（如策略对比）可通过 {@link #setCollectTrace(boolean)} 整体关闭采集。

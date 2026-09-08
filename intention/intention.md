@@ -56,3 +56,6 @@
 # intention-10
 我已手动实现了 sarsa，现在要像 montecarlo 一样的回放功能。不同的是，sarsa 是走一步更新一次，而且算法有些许不同，所以 ui 上的布局需要做些微调。
 你帮我把做个 sarsa 回放的原型，不写代码，不写测试。只做原型
+
+# intention-11
+这是一个重构任务，把 history 包从 world 包里提出来，放到跟 world 同级。不需要写测试。重构完跑 mvn test 通过就行

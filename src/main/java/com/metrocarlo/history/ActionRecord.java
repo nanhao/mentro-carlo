@@ -1,4 +1,4 @@
-package com.metrocarlo.world.history;
+package com.metrocarlo.history;
 
 import com.metrocarlo.world.Cell;
 
