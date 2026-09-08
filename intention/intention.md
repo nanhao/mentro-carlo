@@ -63,3 +63,6 @@
 # intention-12
 这个任务是设计并实现 sarsa 的 trace 数据生成。
 原型已经准备好，在 intention-10 中，你需要按照原型设计trace数据，尽可能复用 mentecarlo 的 trace 机制。
+
+# intention-13
+本次任务要实现一个新的脚本，功能是 sarsa 的回放 ui，参考 montecarlo 的实现。sarsa 的trace 数据已在上一个 intention 准备好了，不需要写测试。

@@ -1,8 +1,8 @@
 # 地图脚本使用手册
 
-`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
+`scripts/` 目录下的 Python 脚本承担三类工作：**地图资产的生成与渲染**（本手册前半部分）、**trace 回放可视化查看器**（见「montecarlo_viewer.py」与「sarsa_viewer.py」章节）与**策略对比实验可视化**（见文末「compare_policies.py」章节）。
 
-目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（`trace_replay.py` 回放引擎、`map_canvas.py` 地图画布、`viewer_app.py` 主窗口），不直接运行。
+目录约定：`scripts/` 只保留可执行的入口脚本；被入口引用的业务模块位于 `scripts/domain/` 子目录（`trace_replay.py` / `sarsa_trace_replay.py` 回放引擎、`map_canvas.py` / `sarsa_map_canvas.py` 地图画布、`viewer_app.py` / `sarsa_viewer_app.py` 主窗口），不直接运行。
 
 ```
 map/1/map.csv  ~ map/10/map.csv   # 地图源文件（Java World 直接加载）
@@ -117,6 +117,45 @@ python scripts/montecarlo_viewer.py --trace data/trace/map-2/run-20260901-120000
 - **窗口空白无地图**：`data/trace` 下尚无任何 trace，先运行 Java 端采集；确认目录结构为 `data/trace/map-N/run-<时间戳>/trace.json`
 - **控制台中文乱码**：PowerShell 默认代码页显示问题，仅影响终端打印，不影响 GUI 中文显示
 - **启动报错 `No module named 'domain'`**：业务模块位于 `scripts/domain/` 子目录，请始终用 `python scripts/montecarlo_viewer.py` 方式启动（脚本所在 scripts 目录会自动加入模块搜索路径）；不要直接运行 `scripts/domain/` 下的模块
+- **加载 sarsa 的 trace**：sarsa trace 位于 `data/trace/sarsa/`，请使用下节的 `sarsa_viewer.py` 查看
+
+---
+
+# sarsa_viewer.py · Sarsa trace 回放可视化查看器
+
+`sarsa_viewer.py`（tkinter 图形界面，仅依赖 Python 标准库）把一次 Sarsa 运行的 `trace.json` 按 design/12 README §六 契约逐步回放：Sarsa 为在线 TD 更新（每走一步立即更新该 (s,a) 的 Q，无回合末结算），因此过程面板展示的是「最近一个 episode 的逐步 TD 更新」正序单表。trace 由 Java 端采集产出（`data/trace/sarsa/map-N/run-*/trace.json`，design/12 §二；已被 .gitignore 排除，需先运行 Java 端 `Main.runSarsaOnOneMap` 生成）。
+
+## 启动
+
+```powershell
+# 自动发现 data/trace/sarsa 下各 map-N 的最新一次运行
+python scripts/sarsa_viewer.py
+
+# 初始加载指定地图的最新运行（同 --map map-1）
+python scripts/sarsa_viewer.py --map 1
+
+# 直接加载任意 trace.json（优先于 --map）
+python scripts/sarsa_viewer.py --trace data/trace/sarsa/map-1/run-20260908-153618/trace.json
+```
+
+加载时校验 `meta.algorithm == "sarsa"`（design/12 §六.1 加载分发）：误选 montecarlo trace 会弹窗提示改用 `montecarlo_viewer.py`。
+
+## 界面与操作
+
+工具栏五按钮、徽章组、左列地图卡与右列信息卡的布局与 `montecarlo_viewer.py` 一致，sarsa 专属差异：
+
+- **地图卡中心徽章 = V̂(s) = max_a Q(s,a)**：Sarsa 无 stateValue，中心值为 GUI 派生量，以虚线边框 + `≈` 前缀区别于 MC 的 S 徽章；图例多两个 chip（「中心 V̂(s) = max_a Q（派生）」与「贪婪动作」）
+- **贪婪动作描边**：格内四角 Q 徽章中值最大者以深色加粗描边（四值并列取其一；全 0 不标注）
+- **参数条**：α（Q 学习率）/ γ / ε 取自 trace meta，另含「α 衰减」胶囊——由行内 `td.alpha` 是否随行变化直判（无硬编码）
+- **最近一个 action 详情**：在 MC 版基础上增加 TD 明细两行——下一动作 a′（终点行显示 `—`，Q(s′,·) 恒为 0）、Q(s′,a′)、TD 目标、δ 与 Q(s,a) 前 → 后
+- **过程面板（10 列正序单表）**：步 / 状态 (x,y) / a / r / 到达 s′ / a′ / Q(s′,a′) / TD 目标 / δ / Q(s,a) 前 → 后，按执行顺序逐行追加（文件序 = 执行正序，design/12 §六.5）；公式条静态展示 ①②③
+- **无结算语义**：「执行一次 action」每步即时更新 Q；「执行完当前 episode」连续应用至行取尽即完成（不存在回合末 S/Q 结算步骤）
+
+## 常见问题
+
+- **窗口空白无地图**：`data/trace/sarsa` 下尚无任何 trace，先运行 Java 端 `mvn compile exec:java -Dexec.mainClass=com.metrocarlo.Main`（`runSarsaOnOneMap`）采集；确认目录结构为 `data/trace/sarsa/map-N/run-<时间戳>/trace.json`
+- **弹窗「算法为 montecarlo（非 sarsa）」**：--trace 或「浏览…」选到了 MC trace，两者目录与 viewer 互不影响，请改用 `montecarlo_viewer.py`
+- **控制台中文乱码 / `No module named 'domain'`**：同 montecarlo_viewer 章节说明
 
 ---
 

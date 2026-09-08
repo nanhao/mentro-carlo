@@ -61,10 +61,10 @@ agent 的目标，是在**一局游戏**中获得最高的**累计奖励**。
 
 ## 当前状态与快速开始
 
-核心链路已实现：网格世界（`world` 包：`World` + `CsvParser`）→ 决策策略（`agent` 包：`RandomPolicy`、`EpsilonGreedyPolicy`）→ 蒙特卡洛评估与控制（`montecarlo` 包）→ trace 导出与 Python GUI 回放 → 地图 1-10 的策略对比实验与可视化。
+核心链路已实现：网格世界（`world` 包：`World` + `CsvParser`）→ 决策策略（`agent` 包：`RandomPolicy`、`EpsilonGreedyPolicy`）→ 蒙特卡洛评估与控制 / Sarsa 在线 TD 控制（`montecarlo` 包）→ trace 导出与 Python GUI 回放（`montecarlo_viewer.py` / `sarsa_viewer.py`）→ 地图 1-10 的策略对比实验与可视化。
 
 ```bash
-# 编译并运行主类：跑一轮完整蒙特卡洛，并把 trace 导出到 data/trace（供 montecarlo_viewer.py 回放）
+# 编译并运行主类：跑一轮 Sarsa 在线 TD 控制，并把 trace 导出到 data/trace/sarsa（供 sarsa_viewer.py 回放；Main 内可切换 runMonteCarloOnOneMap → 蒙特卡洛 → data/trace）
 mvn compile exec:java
 
 # 仅编译主代码
@@ -87,10 +87,11 @@ metro-carlo/
 ├── data/                            # 运行产物（已 gitignore，可一键再生成）：trace/ 回合轨迹，compare/ 策略对比结果
 └── src/
     ├── main/java/com/metrocarlo/
-    │   ├── Main.java                # 入口一：跑一轮完整蒙特卡洛并导出 trace（mvn compile exec:java）
-    │   ├── world/                   # 网格世界模型：World、CsvParser 与 history（trace 数据结构与导出）
+    │   ├── Main.java                # 入口一：跑一轮 Sarsa 并导出 trace（mvn compile exec:java；可切换蒙特卡洛）
+    │   ├── world/                   # 网格世界模型：World、CsvParser
+    │   ├── history/                 # trace 数据结构与导出：Trace/VisitRecord/TdUpdateRecord 与各 Writer
     │   ├── agent/                   # 决策策略：Policy、RandomPolicy、EpsilonGreedyPolicy
-    │   ├── montecarlo/              # 蒙特卡洛评估与控制：MonteCarlo、QAndSBuilder
+    │   ├── montecarlo/              # 蒙特卡洛评估与控制 / Sarsa：MonteCarlo、Sarsa、TraceFactory
     │   ├── experiment/              # 策略对比实验：PolicyComparison 入口与 results.json 写盘
     │   └── common/                  # 常量与 JSON 拼接工具（Constants、JsonAppender）
     └── test/java/com/metrocarlo/    # 单元测试（WorldTest、CsvParserTest）
@@ -100,6 +101,11 @@ metro-carlo/
 
 - **一局游戏**（从 (0,0) 出发直至进入终点）视为一次随机样本
 - 对同一移动策略重复大量对局，用**平均累计奖励**估计该策略的期望表现，作为评估与改进策略的依据
+
+## Sarsa 在线 TD 控制（intention-12/13）
+
+- 与蒙特卡洛「回合末统一结算」不同：**每走一步立即做一次 TD 更新** Q(s,a) ← Q(s,a) + α·(r + γ·Q(s′,a′) − Q(s,a))，其中 a′ 为策略在 s′ 实际选择的下一动作（on-policy 自举）
+- trace 逐行记录 TD 明细（`td{nextAction,nextQ,tdTarget,delta,alpha}`），文件序 = 执行正序；`python scripts/sarsa_viewer.py` 可视化回放（中心 V̂(s) = max_a Q(s,a) 为 GUI 派生量），格式定稿见 `design/12/README.md`
 
 ## 策略对比实验（intention-7）
 
